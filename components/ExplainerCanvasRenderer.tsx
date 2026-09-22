@@ -57,7 +57,7 @@ export default function ExplainerCanvasRenderer({scenes,words=[],captions=[]}:{s
       const img=new Image();
       img.onload=()=>{drawKenBurns(ctx,img,progress);drawCaption(ctx,scene.narration,words.filter(w=>w.start>=sceneStart&&w.end<=time),captions);};
       img.src=scene.image;
-    }else drawCaption(ctx,scene.narration,[]);
+    }else drawCaption(ctx,scene.narration,[],captions);
 
     function drawCaption(ctx:CanvasRenderingContext2D,text:string,current:Word[],captionTrack:Caption[]){
       const activeCaption=captionTrack.find(c=>time>=c.start&&time<c.end);
