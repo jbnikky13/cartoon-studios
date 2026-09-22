@@ -86,7 +86,7 @@ function similar(a:string,b:string) {
   return overlap/Math.min(A.size,B.size)>=0.6;
 }
 
-function synthesize(topic:string,sources:Source[],count=8) {
+function synthesizeFallback(topic:string,sources:Source[],count=8) {
   const beats=[`Let's talk about ${topic}.`];
   const used:string[]=[];
   const pools=sources.map(s=>sentences(s.text));
@@ -101,7 +101,26 @@ function synthesize(topic:string,sources:Source[],count=8) {
     if(!progressed) break;
   }
   while(beats.length<count) beats.push("There's more to this story than meets the eye.");
-  return beats.slice(0,count);
+  return beats.slice(0,count).map((text)=>({narration:text,imagePrompt:`gold-linework watercolor illustration, editorial explainer, cohesive muted palette, visualizing: ${text}`}));
+}
+
+async function synthesizeWithGemini(topic:string,sources:Source[],count:number) {
+  const key=process.env.GEMINI_API_KEY;
+  if(!key) return null;
+  const sourceText=sources.map(s=>`SOURCE ${s.domain}: ${s.text.slice(0,5000)}`).join("\n\n");
+  const prompt=`Create a factual ${count}-beat short explainer about "${topic}" using ONLY the supplied sources. Return JSON only as an array. Each item must have "narration" (one punchy sentence, max 22 words) and "imagePrompt" (one visual prompt). Keep a consistent visual style in every imagePrompt: gold-linework watercolor illustration, editorial explainer, muted palette, cinematic 2D composition. Do not invent facts.\n\n${sourceText}`;
+  const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,{
+    method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:0.3}})
+  });
+  if(!response.ok) throw new Error("Gemini script generation failed.");
+  const data=await response.json();
+  const raw=data?.candidates?.[0]?.content?.parts?.map((p:{text?:string})=>p.text||"").join("")||"";
+  const parsed=JSON.parse(raw);
+  if(!Array.isArray(parsed)) throw new Error("Gemini returned an invalid script.");
+  return parsed.slice(0,count).map((item:{narration?:unknown;imagePrompt?:unknown})=>({
+    narration:String(item.narration||"").trim(),
+    imagePrompt:String(item.imagePrompt||"gold-linework watercolor illustration, editorial explainer, muted palette").trim()
+  })).filter((item:{narration:string})=>item.narration);
 }
 
 export async function POST(req:Request) {
@@ -121,11 +140,17 @@ export async function POST(req:Request) {
     }
     if(!sources.length) return NextResponse.json({error:"Couldn't find usable sources for this topic."},{status:502});
 
+    const beatCount=Math.min(12,Math.max(8,Number((body as {beatCount?:unknown})?.beatCount)||8));
+    let beats=await synthesizeWithGemini(topic,sources,beatCount);
+    const provider=beats ? "duckduckgo-html + Gemini script director" : "duckduckgo-html + native fallback director";
+    if(!beats) beats=synthesizeFallback(topic,sources,beatCount);
     return NextResponse.json({
       topic,
-      beats:synthesize(topic,sources,Number((body as {beatCount?:unknown})?.beatCount)||8),
+      beats,
+      script:beats.map((b:{narration:string})=>b.narration),
       sources:sources.map(({url,title,domain})=>({url,title,domain})),
-      provider:"duckduckgo-html + native-explainer-director",
+      provider,
+      llmUsed:Boolean(process.env.GEMINI_API_KEY),
     });
   } catch(error) {
     return NextResponse.json({error:error instanceof Error?error.message:"Topic research failed."},{status:500});
