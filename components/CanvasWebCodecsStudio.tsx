@@ -411,6 +411,51 @@ function compiledClipFor(clips: CompiledClip[], scene: Scene, character: string)
   return clips.find((clip) => clip.scene === scene.number && clip.character === character) ?? null;
 }
 
+type CameraPreset = "wide" | "medium" | "close" | "pan-left" | "pan-right" | "zoom-in" | "zoom-out";
+
+function cameraPresetAt(scene: Scene | null, local: number): CameraPreset {
+  const explicit = String(scene?.camera?.preset ?? "").toLowerCase();
+  if (["wide","medium","close","pan-left","pan-right","zoom-in","zoom-out"].includes(explicit)) return explicit as CameraPreset;
+  if (local < 0.2) return "wide";
+  if (local > 0.82) return "medium";
+  return "medium";
+}
+
+function cameraScaleForPreset(preset: CameraPreset, progress: number) {
+  switch (preset) {
+    case "close": return 1.18;
+    case "zoom-in": return 1 + progress * 0.22;
+    case "zoom-out": return 1.18 - progress * 0.18;
+    case "medium": return 1.05;
+    default: return 1;
+  }
+}
+
+function cameraPanForPreset(preset: CameraPreset, progress: number) {
+  switch (preset) {
+    case "pan-left": return 90 - progress * 180;
+    case "pan-right": return -90 + progress * 180;
+    default: return 0;
+  }
+}
+
+function drawTransition(ctx: CanvasRenderingContext2D, progress: number, style: "cut" | "fade" | "wipe") {
+  if (style === "cut" || progress <= 0 || progress >= 1) return;
+  ctx.save();
+  if (style === "fade") {
+    ctx.globalAlpha = progress < 0.5 ? 1 - progress * 2 : (progress - 0.5) * 2;
+    ctx.fillStyle = "#05060a";
+    ctx.fillRect(0, 0, 900, 720);
+  } else {
+    const p = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
+    ctx.fillStyle = "#05060a";
+    if (style === "wipe") {
+      ctx.fillRect(progress < 0.5 ? 0 : 900 * (1-p), 0, 900*p, 720);
+    }
+  }
+  ctx.restore();
+}
+
 type ActionOverrides = Record<string, string>;
 
 function actionOverrideKey(scene: Scene, character: string) {
@@ -451,8 +496,9 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mou
   ctx.fillStyle = "#0a0c13";
   ctx.fillRect(0, 570, W, 150);
 
-  const scale = cameraScale(scene?.camera);
-  const pan = cameraOffset(scene?.camera, local);
+  const preset = cameraPresetAt(scene, sceneProgress);
+  const scale = cameraScale(scene?.camera) * cameraScaleForPreset(preset, sceneProgress);
+  const pan = cameraOffset(scene?.camera, local) + cameraPanForPreset(preset, sceneProgress);
   ctx.save();
   ctx.translate(W / 2 + pan, H / 2);
   ctx.scale(scale, scale);
@@ -599,6 +645,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   const [actionOverrides, setActionOverrides] = useState<ActionOverrides>({});
   const compiledClips = useMemo(() => compileStory(story), [story]);
   const [selectedSceneNumber, setSelectedSceneNumber] = useState<number | null>(null);
+  const [transitionStyle, setTransitionStyle] = useState<"cut" | "fade" | "wipe">("fade");
 
   const duration = useMemo(() => durationOf(story), [story]);
   const supported = typeof window !== "undefined" && "VideoEncoder" in window && "VideoFrame" in window;
@@ -818,6 +865,27 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
 
 
 
+
+
+      <div className="camera-panel">
+        <div className="timeline-head">
+          <div>
+            <div className="eyebrow">Phase 11 · Camera + Transitions</div>
+            <strong>Dynamic cinematography</strong>
+            <p className="muted">Preview and export now support camera presets and scene transition controls.</p>
+          </div>
+          <select value={transitionStyle} onChange={(e) => setTransitionStyle(e.target.value as "cut" | "fade" | "wipe")} disabled={exporting}>
+            <option value="fade">Fade</option>
+            <option value="cut">Cut</option>
+            <option value="wipe">Wipe</option>
+          </select>
+        </div>
+        <div className="camera-presets">
+          {["wide","medium","close","pan-left","pan-right","zoom-in","zoom-out"].map((preset) => (
+            <span className="camera-chip" key={preset}>{preset.replace("-", " ")}</span>
+          ))}
+        </div>
+      </div>
 
       <div className="compiler-panel">
         <div className="timeline-head">
