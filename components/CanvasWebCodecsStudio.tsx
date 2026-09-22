@@ -411,6 +411,26 @@ function compiledClipFor(clips: CompiledClip[], scene: Scene, character: string)
   return clips.find((clip) => clip.scene === scene.number && clip.character === character) ?? null;
 }
 
+type ExportHealth = {
+  duration: number;
+  frameRate: number;
+  estimatedFrames: number;
+  codec: string;
+  width: number;
+  height: number;
+};
+
+function getExportHealth(story: ExportStory, duration: number, frameRate: number, codec: string, width = 900, height = 720): ExportHealth {
+  return {
+    duration: Math.max(0, duration),
+    frameRate,
+    estimatedFrames: Math.max(0, Math.ceil(duration * frameRate)),
+    codec,
+    width,
+    height,
+  };
+}
+
 type CharacterTransform = { x: number; y: number; scale: number; rotation: number; flipX: boolean };
 
 function defaultCharacterTransform(): CharacterTransform {
@@ -666,6 +686,9 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   const [transitionStyle, setTransitionStyle] = useState<"cut" | "fade" | "wipe">("fade");
   const [characterTransforms, setCharacterTransforms] = useState<Record<string, CharacterTransform>>({});
   const [selectedCharacter, setSelectedCharacter] = useState<string>("");
+  const [exportHealth, setExportHealth] = useState<ExportHealth | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+
 
 
   const duration = useMemo(() => durationOf(story), [story]);
@@ -796,7 +819,19 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
     setActionOverrides({});
   }
 
+  function validateExportSettings() {
+    const canvas = canvasRef.current;
+    if (!canvas) return "Preview canvas is not ready.";
+    if (!Number.isFinite(duration) || duration <= 0) return "Story duration must be greater than zero.";
+    if (!Number.isFinite(fps) || fps < 1 || fps > 60) return "Frame rate must be between 1 and 60 FPS.";
+    return null;
+  }
+
   async function exportMp4() {
+    setExportError(null);
+    const validationError = validateExportSettings();
+    if (validationError) { setExportError(validationError); return; }
+    setExportHealth(getExportHealth(story, duration, fps, "video/webm;codecs=vp09", canvasRef.current?.width ?? 900, canvasRef.current?.height ?? 720));
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -899,6 +934,27 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
 
 
 
+
+
+      <div className="export-health-panel">
+        <div className="timeline-head">
+          <div>
+            <div className="eyebrow">Phase 13 · Production Export</div>
+            <strong>Export health & safeguards</strong>
+            <p className="muted">Validates render settings before encoding and shows the expected workload.</p>
+          </div>
+          {exportHealth && <span className="compiler-count">{exportHealth.estimatedFrames.toLocaleString()} frames</span>}
+        </div>
+        {exportHealth && (
+          <div className="export-health-grid">
+            <span><b>Duration</b>{exportHealth.duration.toFixed(1)}s</span>
+            <span><b>FPS</b>{exportHealth.frameRate}</span>
+            <span><b>Canvas</b>{exportHealth.width}×{exportHealth.height}</span>
+            <span><b>Codec</b>{exportHealth.codec}</span>
+          </div>
+        )}
+        {exportError && <div className="export-error" role="alert">{exportError}</div>}
+      </div>
 
       <div className="character-editor-panel">
         <div className="timeline-head">
