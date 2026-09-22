@@ -424,7 +424,7 @@ function detectRenderCapabilities(): RenderCapability {
     canvas: typeof HTMLCanvasElement !== "undefined",
     webCodecs: typeof VideoEncoder !== "undefined" && typeof VideoFrame !== "undefined",
     audio: typeof AudioContext !== "undefined",
-    mediaRecorder: typeof MediaRecorder !== "undefined',
+    mediaRecorder: typeof MediaRecorder !== "undefined",
   };
 }
 
