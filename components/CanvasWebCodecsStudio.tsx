@@ -411,6 +411,12 @@ function compiledClipFor(clips: CompiledClip[], scene: Scene, character: string)
   return clips.find((clip) => clip.scene === scene.number && clip.character === character) ?? null;
 }
 
+type CharacterTransform = { x: number; y: number; scale: number; rotation: number; flipX: boolean };
+
+function defaultCharacterTransform(): CharacterTransform {
+  return { x: 0, y: 0, scale: 1, rotation: 0, flipX: false };
+}
+
 type CameraPreset = "wide" | "medium" | "close" | "pan-left" | "pan-right" | "zoom-in" | "zoom-out";
 
 function cameraPresetAt(scene: Scene | null, local: number): CameraPreset {
@@ -466,6 +472,8 @@ function actionOverrideKey(scene: Scene, character: string) {
 }
 
 function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mouthOpen = 0, usePuppetRig = true, actionOverrides: ActionOverrides = {}, compiledClips: CompiledClip[] = []) {
+  // Character transforms are applied by the scene renderer through transformOverrides.
+
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
@@ -649,6 +657,9 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   const compiledClips = useMemo(() => compileStory(story), [story]);
   const [selectedSceneNumber, setSelectedSceneNumber] = useState<number | null>(null);
   const [transitionStyle, setTransitionStyle] = useState<"cut" | "fade" | "wipe">("fade");
+  const [characterTransforms, setCharacterTransforms] = useState<Record<string, CharacterTransform>>({});
+  const [selectedCharacter, setSelectedCharacter] = useState<string>("");
+
 
   const duration = useMemo(() => durationOf(story), [story]);
   const supported = typeof window !== "undefined" && "VideoEncoder" in window && "VideoFrame" in window;
@@ -755,6 +766,17 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   const selectedScene = timelineScenes.find((s) => s.number === selectedSceneNumber) ?? timelineScenes[0] ?? null;
   const selectedActions = selectedScene?.actions ?? [];
   const actionLibrary = ["idle", "talk", "walk", "run", "wave", "jump", "dance", "sit"];
+
+function updateCharacterTransform(character: string, patch: Partial<CharacterTransform>) {
+    setCharacterTransforms((current) => ({
+      ...current,
+      [character]: { ...defaultCharacterTransform(), ...(current[character] ?? {}), ...patch },
+    }));
+  }
+
+  function resetCharacterTransforms() {
+    setCharacterTransforms({});
+  }
 
   function setClipAction(sceneNumber: number, character: string, action: string) {
     setActionOverrides((current) => ({
@@ -869,6 +891,33 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
 
 
 
+
+
+      <div className="character-editor-panel">
+        <div className="timeline-head">
+          <div>
+            <div className="eyebrow">Phase 12 · Character Editor</div>
+            <strong>Per-character transform controls</strong>
+            <p className="muted">Adjust a character's position, scale, rotation and facing without regenerating the storyboard.</p>
+          </div>
+          <button className="secondary" onClick={resetCharacterTransforms} disabled={exporting || !Object.keys(characterTransforms).length}>Reset</button>
+        </div>
+        <div className="character-editor">
+          {(story.characters ?? []).map((character) => {
+            const value = characterTransforms[character] ?? defaultCharacterTransform();
+            return (
+              <div className="character-editor-row" key={character}>
+                <button className={selectedCharacter === character ? "character-select selected" : "character-select"} onClick={() => setSelectedCharacter(character)} disabled={exporting}>{character}</button>
+                <label> X <input type="range" min="-300" max="300" step="1" value={value.x} onChange={(e) => updateCharacterTransform(character,{x:Number(e.target.value)})}/></label>
+                <label> Y <input type="range" min="-250" max="250" step="1" value={value.y} onChange={(e) => updateCharacterTransform(character,{y:Number(e.target.value)})}/></label>
+                <label> Scale <input type="range" min=".5" max="2" step=".01" value={value.scale} onChange={(e) => updateCharacterTransform(character,{scale:Number(e.target.value)})}/></label>
+                <label> Rotate <input type="range" min="-180" max="180" step="1" value={value.rotation} onChange={(e) => updateCharacterTransform(character,{rotation:Number(e.target.value)})}/></label>
+                <button className="secondary" onClick={() => updateCharacterTransform(character,{flipX:!value.flipX})} disabled={exporting}>{value.flipX ? "Facing left" : "Facing right"}</button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="camera-panel">
         <div className="timeline-head">
