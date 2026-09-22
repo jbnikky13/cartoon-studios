@@ -8,6 +8,8 @@ type Character={id:string;name:string;role:string;appearance:string;outfit:strin
 
 export default function TopicExplainerStudio(){
   const [topic,setTopic]=useState("");
+  const [researchLinks,setResearchLinks]=useState("");
+  const [researchPacket,setResearchPacket]=useState<{title:string;url:string;domain:string;sourceType:string}[]>([]);
   const [beats,setBeats]=useState<Beat[]>([]);
   const [sources,setSources]=useState<{title:string;domain:string;url:string}[]>([]);
   const [timings,setTimings]=useState<Timing[]>([]);
