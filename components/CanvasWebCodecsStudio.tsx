@@ -411,6 +411,23 @@ function compiledClipFor(clips: CompiledClip[], scene: Scene, character: string)
   return clips.find((clip) => clip.scene === scene.number && clip.character === character) ?? null;
 }
 
+type RenderCapability = {
+  canvas: boolean;
+  webCodecs: boolean;
+  audio: boolean;
+  mediaRecorder: boolean;
+};
+
+function detectRenderCapabilities(): RenderCapability {
+  if (typeof window === "undefined") return { canvas:false, webCodecs:false, audio:false, mediaRecorder:false };
+  return {
+    canvas: typeof HTMLCanvasElement !== "undefined",
+    webCodecs: typeof VideoEncoder !== "undefined" && typeof VideoFrame !== "undefined",
+    audio: typeof AudioContext !== "undefined" || typeof webkitAudioContext !== "undefined",
+    mediaRecorder: typeof MediaRecorder !== "undefined',
+  };
+}
+
 type ExportHealth = {
   duration: number;
   frameRate: number;
@@ -688,6 +705,11 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   const [selectedCharacter, setSelectedCharacter] = useState<string>("");
   const [exportHealth, setExportHealth] = useState<ExportHealth | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [renderCapabilities, setRenderCapabilities] = useState<RenderCapability | null>(null);
+  const [renderProgress, setRenderProgress] = useState(0);
+  const [renderStartedAt, setRenderStartedAt] = useState<number | null>(null);
+  const [renderAbort, setRenderAbort] = useState<AbortController | null>(null);
+
 
 
 
@@ -697,6 +719,8 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   useEffect(() => setTime(0), [story]);
 
   useEffect(() => {
+    refreshRenderCapabilities();
+
     let raf = 0;
     let last = performance.now();
     const loop = (now: number) => {
@@ -819,6 +843,18 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
     setActionOverrides({});
   }
 
+  function cancelExport() {
+    renderAbort?.abort();
+    setRenderAbort(null);
+    setExporting(false);
+    setRenderProgress(0);
+    setStatus("Export cancelled.");
+  }
+
+  function refreshRenderCapabilities() {
+    setRenderCapabilities(detectRenderCapabilities());
+  }
+
   function validateExportSettings() {
     const canvas = canvasRef.current;
     if (!canvas) return "Preview canvas is not ready.";
@@ -836,6 +872,9 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
     if (!canvas) return;
 
     setExporting(true);
+    setRenderProgress(0);
+    setRenderStartedAt(Date.now());
+    setRenderAbort(new AbortController());
     setStatus("Preparing video and synchronized audio…");
     setDownloadUrl("");
 
@@ -935,6 +974,28 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
 
 
 
+
+
+      <div className="production-panel">
+        <div className="timeline-head">
+          <div>
+            <div className="eyebrow">Phase 14 · Studio Hardening</div>
+            <strong>Render control center</strong>
+            <p className="muted">Browser capability checks, render progress and cancellation for long exports.</p>
+          </div>
+          {exporting && <button className="secondary" onClick={cancelExport}>Cancel render</button>}
+        </div>
+        {renderCapabilities && (
+          <div className="capability-grid">
+            <span className={renderCapabilities.canvas ? "cap-ok" : "cap-bad"}>Canvas {renderCapabilities.canvas ? "ready" : "missing"}</span>
+            <span className={renderCapabilities.webCodecs ? "cap-ok" : "cap-bad"}>WebCodecs {renderCapabilities.webCodecs ? "ready" : "missing"}</span>
+            <span className={renderCapabilities.audio ? "cap-ok" : "cap-bad"}>Audio {renderCapabilities.audio ? "ready" : "missing"}</span>
+            <span className={renderCapabilities.mediaRecorder ? "cap-ok" : "cap-bad"}>Media {renderCapabilities.mediaRecorder ? "ready" : "missing"}</span>
+          </div>
+        )}
+        {exporting && <div className="render-progress"><div className="render-progress-bar" style={{width: `${Math.round(renderProgress * 100)}%`}} /></div>}
+        {exporting && <div className="render-meta">{Math.round(renderProgress * 100)}%{renderStartedAt ? ` · ${Math.max(0, Math.round((Date.now() - renderStartedAt) / 1000))}s elapsed` : ""}</div>}
+      </div>
 
       <div className="export-health-panel">
         <div className="timeline-head">
