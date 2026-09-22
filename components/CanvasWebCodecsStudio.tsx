@@ -90,7 +90,9 @@ function expressionState(emotion = "", local = 0) {
 }
 
 const ASSET_BASE = "https://raw.githubusercontent.com/jbnikky13/cartoon-studios/main/char_assets_fullbody/";
+const RIG_ASSET_BASE = "https://raw.githubusercontent.com/jbnikky13/cartoon-studios/main/char_assets/";
 const assetCache = new Map<string, HTMLImageElement>();
+const rigAssets = new Map<string, RigAssets>();
 const assetLoads = new Map<string, Promise<HTMLImageElement>>();
 
 function slugifyCharacter(name: string) {
@@ -165,7 +167,23 @@ function puppetPose(action: string, local: number): PuppetPose {
   };
 }
 
-function drawPuppetAsset(ctx: CanvasRenderingContext2D, image: HTMLImageElement, pose: PuppetPose) {
+function drawPuppetAsset(ctx: CanvasRenderingContext2D, image: HTMLImageElement, pose: PuppetPose, rig?: RigAssets) {
+  if (rig && Object.keys(rig).length >= 4) {
+    const drawLayer = (part: keyof RigAssets, x: number, y: number, rot: number, sx=1, sy=1) => {
+      const img = rig[part]; if (!img) return;
+      ctx.save(); ctx.translate(x,y); ctx.rotate(rot); ctx.scale(sx,sy);
+      const scale=Math.min(210/img.naturalWidth,360/img.naturalHeight);
+      ctx.drawImage(img,-img.naturalWidth*scale/2,-img.naturalHeight*scale/2,img.naturalWidth*scale,img.naturalHeight*scale);
+      ctx.restore();
+    };
+    drawLayer("torso", pose.torsoX, 42+pose.torsoY, pose.torsoRot+pose.lean, pose.squash, 1/pose.squash);
+    drawLayer("head", pose.headX, -112+pose.headY, pose.headRot);
+    drawLayer("left_arm", -55+pose.torsoX, 40+pose.torsoY, pose.leftArm);
+    drawLayer("right_arm", 55+pose.torsoX, 40+pose.torsoY, pose.rightArm);
+    drawLayer("left_leg", -28+pose.torsoX, 150+pose.torsoY, pose.leftLeg);
+    drawLayer("right_leg", 28+pose.torsoX, 150+pose.torsoY, pose.rightLeg);
+    return;
+  }
   // Normalized regions let the same rig work across the Cartoon Studio full-body
   // assets without requiring separate exported limb files.
   const iw = image.naturalWidth, ih = image.naturalHeight;
@@ -214,7 +232,7 @@ function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, colo
     const dh = image.naturalHeight * ratio;
     if (usePuppetRig) {
       const pose = puppetPose(action, local);
-      drawPuppetAsset(ctx, image, pose);
+      drawPuppetAsset(ctx, image, pose, rigAssets.get(slugifyCharacter(label)));
     } else {
       ctx.drawImage(image, -dw / 2, -dh + 20, dw, dh);
     }
@@ -520,7 +538,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
     let cancelled = false;
     setAssetsReady(false);
     setAssetStatus(characterNames.length ? "Loading character assets…" : "Using fallback character.");
-    Promise.allSettled(characterNames.map((name) => loadCharacterAsset(name)))
+    Promise.allSettled(characterNames.map(async (name) => { const [img, rig] = await Promise.all([loadCharacterAsset(name), loadRigAssets(name)]); rigAssets.set(slugifyCharacter(name), rig); return img; }))
       .then((results) => {
         if (cancelled) return;
         const loaded = results.filter((r) => r.status === "fulfilled").length;
