@@ -31,6 +31,8 @@ export default function TopicExplainerStudio(){
       const j=await r.json();
       if(!r.ok) throw new Error(j.error||"Topic research failed.");
       setBeats(j.beats||[]);setSources(j.sources||[]);setProvider(j.provider||"");
+      setCharacterLoading(true);
+      try{const cr=await fetch("/api/explainer/characters",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({topic,script:(j.beats||[]).map((b:Beat)=>b.narration)})});const cj=await cr.json();if(cr.ok)setCharacterBible(cj);}catch(e){setError(e instanceof Error?e.message:"Character planning failed.");}finally{setCharacterLoading(false);}
     }catch(e){setError(e instanceof Error?e.message:"Topic research failed.");}
     finally{setLoading(false);}
     if(!beats.length)return;
