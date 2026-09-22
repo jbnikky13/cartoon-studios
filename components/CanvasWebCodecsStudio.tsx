@@ -423,7 +423,7 @@ function detectRenderCapabilities(): RenderCapability {
   return {
     canvas: typeof HTMLCanvasElement !== "undefined",
     webCodecs: typeof VideoEncoder !== "undefined" && typeof VideoFrame !== "undefined",
-    audio: typeof AudioContext !== "undefined" || typeof webkitAudioContext !== "undefined",
+    audio: typeof AudioContext !== "undefined",
     mediaRecorder: typeof MediaRecorder !== "undefined',
   };
 }
@@ -708,7 +708,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   const [renderCapabilities, setRenderCapabilities] = useState<RenderCapability | null>(null);
   const [renderProgress, setRenderProgress] = useState(0);
   const [renderStartedAt, setRenderStartedAt] = useState<number | null>(null);
-  const [renderAbort, setRenderAbort] = useState<AbortController | null>(null);
+  const renderAbortRef = useRef<AbortController | null>(null);
 
 
 
@@ -844,8 +844,8 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
   }
 
   function cancelExport() {
-    renderAbort?.abort();
-    setRenderAbort(null);
+    renderAbortRef.current?.abort();
+    renderAbortRef.current = null;
     setExporting(false);
     setRenderProgress(0);
     setStatus("Export cancelled.");
@@ -874,7 +874,7 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
     setExporting(true);
     setRenderProgress(0);
     setRenderStartedAt(Date.now());
-    setRenderAbort(new AbortController());
+    renderAbortRef.current = new AbortController();
     setStatus("Preparing video and synchronized audio…");
     setDownloadUrl("");
 
