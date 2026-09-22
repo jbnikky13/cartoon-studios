@@ -5,7 +5,6 @@ venv/
 env/
 .env
 .env.*
-.streamlit/secrets.toml
 *.mp4
 *.mov
 *.m4v
