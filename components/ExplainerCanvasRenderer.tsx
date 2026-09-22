@@ -5,6 +5,8 @@ import {useEffect,useRef,useState} from "react";
 type Scene={image:string|null;duration:number;narration:string};
 type Word={text:string;start:number;end:number};
 
+type Caption={text:string;start:number;end:number};
+
 function drawKenBurns(ctx:CanvasRenderingContext2D,img:HTMLImageElement,t:number){
   const scale=1.04+t*0.08;
   const cw=ctx.canvas.width,ch=ctx.canvas.height;
@@ -14,7 +16,7 @@ function drawKenBurns(ctx:CanvasRenderingContext2D,img:HTMLImageElement,t:number
   ctx.drawImage(img,x,y,w,h);
 }
 
-export default function ExplainerCanvasRenderer({scenes,words=[]}:{scenes:Scene[];words?:Word[]}){
+export default function ExplainerCanvasRenderer({scenes,words=[],captions=[]}:{scenes:Scene[];words?:Word[];captions?:Caption[]}){
   const canvasRef=useRef<HTMLCanvasElement>(null);
   const [playing,setPlaying]=useState(false);
   const [time,setTime]=useState(0);
@@ -53,12 +55,14 @@ export default function ExplainerCanvasRenderer({scenes,words=[]}:{scenes:Scene[
 
     if(scene.image){
       const img=new Image();
-      img.onload=()=>{drawKenBurns(ctx,img,progress);drawCaption(ctx,scene.narration,words.filter(w=>w.start>=sceneStart&&w.end<=time));};
+      img.onload=()=>{drawKenBurns(ctx,img,progress);drawCaption(ctx,scene.narration,words.filter(w=>w.start>=sceneStart&&w.end<=time),captions);};
       img.src=scene.image;
     }else drawCaption(ctx,scene.narration,[]);
 
-    function drawCaption(ctx:CanvasRenderingContext2D,text:string,current:Word[]){
-      const phrase=current.length?current.map(w=>w.text).join(" "):text;
+    function drawCaption(ctx:CanvasRenderingContext2D,text:string,current:Word[],captionTrack:Caption[]){
+      const activeCaption=captionTrack.find(c=>time>=c.start&&time<c.end);
+      const activeWords=current.length?current.map(w=>w.text).join(" "):"";
+      const phrase=activeCaption?.text||activeWords||text;
       ctx.font="700 42px Arial";
       const max=width*0.82;
       const wordsArr=phrase.split(/\s+/);
@@ -69,6 +73,7 @@ export default function ExplainerCanvasRenderer({scenes,words=[]}:{scenes:Scene[
       ctx.fillStyle="rgba(15,15,15,.82)";
       ctx.beginPath();ctx.roundRect(width*.08,boxY,width*.84,boxH,18);ctx.fill();
       ctx.fillStyle="#fff";lines.forEach((line,i)=>ctx.fillText(line,width*.11,boxY+48+i*58));
+      if(activeCaption){ctx.strokeStyle="rgba(255,214,70,.9)";ctx.lineWidth=4;ctx.strokeRect(width*.08,boxY,width*.84,boxH);}
     }
   },[time,scenes,words]);
 
