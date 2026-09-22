@@ -22,3 +22,10 @@
 .clip-button{border:1px solid #353846;background:#151722;color:#bfc5d9;border-radius:9px;padding:7px 10px;font-size:12px;text-transform:capitalize;cursor:pointer}
 .clip-button.selected{border-color:#9b7cff;background:rgba(155,124,255,.16);color:#fff}
 @media(max-width:700px){.timeline-head{flex-direction:column}.clip-row{grid-template-columns:1fr}.clip-buttons{overflow-x:auto;flex-wrap:nowrap}}
+
+.compiler-panel{margin-top:18px;padding:16px;border:1px solid #292c38;border-radius:16px;background:rgba(83,216,251,.045)}
+.compiler-count{padding:7px 10px;border:1px solid #353846;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
+.compiler-list{display:grid;gap:6px;margin-top:14px}
+.compiler-row{display:grid;grid-template-columns:42px 1.3fr 1fr 1fr;gap:10px;align-items:center;padding:9px 10px;border-top:1px solid #252835;font-size:12px}
+.compiler-scene{font-weight:900}.compiler-emotion{text-transform:capitalize;color:#9b7cff}
+@media(max-width:700px){.compiler-row{grid-template-columns:34px 1fr 1fr}.compiler-emotion{display:none}}
