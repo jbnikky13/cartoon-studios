@@ -25,6 +25,12 @@ try:
     EVIDENCE_BOARD_AVAILABLE = True
 except Exception as exc: EVIDENCE_BOARD_ERROR = exc
 
+SONG_STORY_AVAILABLE = False; SONG_STORY_ERROR = None
+try:
+    from song_story_engine import render_song_story
+    SONG_STORY_AVAILABLE = True
+except Exception as exc: SONG_STORY_ERROR = exc
+
 PHOTOREAL_AVAILABLE = False; PHOTOREAL_ERROR = None
 try:
     from photoreal_ui import render_photoreal_microdrama
@@ -54,7 +60,7 @@ st.caption("Classic cartoons, photoreal AI microdramas, RealityBlend scenes, and
 
 with st.sidebar:
     st.header("🎛️ Studio")
-    mode = st.radio("Creation mode", ["🎥 Photoreal Microdrama", "🎭 Classic Cartoon", "🌍 RealityBlend", "🕵️ Evidence Board", "🎞️ Join Clips"], index=0)
+    mode = st.radio("Creation mode", ["🎵 Song → Story", "🎥 Photoreal Microdrama", "🎭 Classic Cartoon", "🌍 RealityBlend", "🕵️ Evidence Board", "🎞️ Join Clips"], index=0)
     st.divider()
     if mode == "🎭 Classic Cartoon":
         st.subheader("🎞️ Quick Motion")
@@ -62,12 +68,18 @@ with st.sidebar:
         apply_classic_motion_override(quick)
         st.caption("Use the per-character timeline below for sequenced actions.")
     st.caption("Mode status:")
+    st.caption(f"{'✅' if SONG_STORY_AVAILABLE else '❌'} Song → Story")
     st.caption(f"{'✅' if PHOTOREAL_AVAILABLE else '❌'} Photoreal Microdrama")
     st.caption(f"{'✅' if CLASSIC_AVAILABLE else '❌'} Classic Cartoon")
     st.caption(f"{'✅' if REALITYBLEND_AVAILABLE else '❌'} RealityBlend")
     st.caption(f"{'✅' if EVIDENCE_BOARD_AVAILABLE else '❌'} Discovery Story")
 
-if mode == "🎥 Photoreal Microdrama":
+if mode == "🎵 Song → Story":
+    if SONG_STORY_AVAILABLE:
+        render_song_story()
+    else:
+        st.error("Song → Story could not be loaded."); st.code(str(SONG_STORY_ERROR))
+elif mode == "🎥 Photoreal Microdrama":
     if PHOTOREAL_AVAILABLE:
         render_photoreal_microdrama()
     else:
@@ -107,7 +119,7 @@ elif mode == "🎞️ Join Clips":
 st.divider()
 with st.expander("🔧 V7 Diagnostics"):
     st.write("Python:", sys.version.split()[0])
-    st.write("Modes", {"Photoreal Microdrama": PHOTOREAL_AVAILABLE, "Classic Cartoon": CLASSIC_AVAILABLE, "RealityBlend": REALITYBLEND_AVAILABLE, "Discovery Story": EVIDENCE_BOARD_AVAILABLE})
+    st.write("Modes", {"Song → Story": SONG_STORY_AVAILABLE, "Photoreal Microdrama": PHOTOREAL_AVAILABLE, "Classic Cartoon": CLASSIC_AVAILABLE, "RealityBlend": REALITYBLEND_AVAILABLE, "Discovery Story": EVIDENCE_BOARD_AVAILABLE})
     st.write("Motion engine:", Path("motion_presets.py").exists())
     st.write("Timeline engine:", Path("timeline_actions.py").exists())
     st.write("Classic action engine:", Path("classic_actions.py").exists())
