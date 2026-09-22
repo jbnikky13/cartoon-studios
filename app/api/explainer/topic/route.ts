@@ -51,6 +51,18 @@ async function searchDuckDuckGo(topic:string) {
   return [];
 }
 
+async function searchWikipedia(topic:string):Promise<string[]> {
+  try {
+    const response=await fetch("https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(topic)+"&gsrlimit=5&prop=info&inprop=url&format=json",{
+      headers:{"user-agent":"CartoonStudiosTopicStory/1.0"},
+      signal:AbortSignal.timeout(10000),
+    });
+    if(!response.ok)return [];
+    const data=await response.json();
+    return Object.values(data?.query?.pages||{}).map((p:any)=>String(p.fullurl||"")).filter((u:string)=>u.startsWith("http"));
+  } catch { return []; }
+}
+
 async function fetchSource(url:string):Promise<Source|null> {
   const domain=domainOf(url);
   if (!domain || BLOCKED.has(domain)) return null;
@@ -128,15 +140,17 @@ export async function POST(req:Request) {
     const topic=typeof body==="object"&&body!==null&&"topic" in body ? String((body as {topic?:unknown}).topic||"").trim() : "";
     if(!topic) return NextResponse.json({error:"A topic is required."},{status:400});
 
-    const candidates = await searchDuckDuckGo(topic);
-    if (!candidates.length) return NextResponse.json({error:"Search provider returned no results. You can retry or configure SERPAPI_KEY/BING_SEARCH_KEY for a more reliable provider."},{status:502});
+    const rawUrls=Array.isArray((body as {urls?:unknown})?.urls)
+      ? ((body as {urls?:unknown[]}).urls||[]).map(String).filter((u:string)=>/^https?:\\/\\//i.test(u))
+      : [];
+    const candidates=[...rawUrls,...await searchDuckDuckGo(topic),...await searchWikipedia(topic)];
     const sources:Source[]=[];
     const seen=new Set<string>();
     for(const url of candidates) {
       const source=await fetchSource(url);
       if(!source || seen.has(source.domain)) continue;
       sources.push(source); seen.add(source.domain);
-      if(sources.length>=4) break;
+      if(sources.length>=8) break;
     }
     if(!sources.length) return NextResponse.json({error:"Couldn't find usable sources for this topic."},{status:502});
 
