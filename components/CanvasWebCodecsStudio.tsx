@@ -119,7 +119,81 @@ function loadCharacterAsset(name: string) {
   return promise;
 }
 
-function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, action: string, local: number, label: string, image?: HTMLImageElement, emotion = "", mouthOpen = 0) {
+type PuppetPose = {
+  torsoX: number; torsoY: number; torsoRot: number;
+  headX: number; headY: number; headRot: number;
+  leftArm: number; rightArm: number; leftLeg: number; rightLeg: number;
+  lean: number; squash: number;
+};
+
+function puppetPose(action: string, local: number): PuppetPose {
+  const a = action.toLowerCase();
+  const idle = Math.sin(local * 2) * 0.018;
+  if (a.includes("dance")) return {
+    torsoX: Math.sin(local * 5) * 4, torsoY: Math.sin(local * 10) * 5, torsoRot: Math.sin(local * 5) * .05,
+    headX: Math.sin(local * 5) * 5, headY: -Math.abs(Math.sin(local * 5)) * 4, headRot: Math.sin(local * 5) * .09,
+    leftArm: Math.sin(local * 5) * .65, rightArm: -Math.sin(local * 5) * .65,
+    leftLeg: Math.sin(local * 5) * .22, rightLeg: -Math.sin(local * 5) * .22, lean: Math.sin(local * 5) * .035, squash: 1 + Math.sin(local * 10) * .025
+  };
+  if (a.includes("walk") || a.includes("run") || a.includes("move")) {
+    const speed = a.includes("run") ? 8 : 4;
+    return {
+      torsoX: Math.sin(local * speed) * 3, torsoY: Math.abs(Math.sin(local * speed)) * -5, torsoRot: Math.sin(local * speed) * .035,
+      headX: 0, headY: -Math.abs(Math.sin(local * speed)) * 3, headRot: Math.sin(local * speed) * .025,
+      leftArm: Math.sin(local * speed) * .55, rightArm: -Math.sin(local * speed) * .55,
+      leftLeg: -Math.sin(local * speed) * .3, rightLeg: Math.sin(local * speed) * .3, lean: a.includes("run") ? .07 : .025, squash: 1
+    };
+  }
+  if (a.includes("jump")) return {
+    torsoX: 0, torsoY: -Math.abs(Math.sin(local * 3)) * 12, torsoRot: 0,
+    headX: 0, headY: -Math.abs(Math.sin(local * 3)) * 10, headRot: 0,
+    leftArm: -.8, rightArm: .8, leftLeg: .28, rightLeg: -.28, lean: 0, squash: 1.03
+  };
+  if (a.includes("wave")) return {
+    torsoX: 0, torsoY: 0, torsoRot: 0, headX: 0, headY: -2, headRot: idle,
+    leftArm: Math.sin(local * 7) * .45 - .8, rightArm: 0, leftLeg: 0, rightLeg: 0, lean: 0, squash: 1
+  };
+  if (a.includes("sit")) return {
+    torsoX: 0, torsoY: 25, torsoRot: -.05, headX: 0, headY: 20, headRot: 0,
+    leftArm: 0, rightArm: 0, leftLeg: -.55, rightLeg: .55, lean: 0, squash: .98
+  };
+  return {
+    torsoX: 0, torsoY: Math.sin(local * 2) * 3, torsoRot: idle,
+    headX: 0, headY: Math.sin(local * 2) * 2, headRot: idle * .7,
+    leftArm: Math.sin(local * 2) * .08, rightArm: -Math.sin(local * 2) * .08,
+    leftLeg: 0, rightLeg: 0, lean: 0, squash: 1
+  };
+}
+
+function drawPuppetAsset(ctx: CanvasRenderingContext2D, image: HTMLImageElement, pose: PuppetPose) {
+  // Normalized regions let the same rig work across the Cartoon Studio full-body
+  // assets without requiring separate exported limb files.
+  const iw = image.naturalWidth, ih = image.naturalHeight;
+  const scale = Math.min(210 / iw, 360 / ih);
+  const dw = iw * scale, dh = ih * scale;
+  const drawRegion = (sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, rot: number) => {
+    ctx.save();
+    ctx.translate(dx, dy);
+    ctx.rotate(rot);
+    ctx.drawImage(image, sx * iw, sy * ih, sw * iw, sh * ih, -(sw * dw) / 2, -(sh * dh) / 2, sw * dw, sh * dh);
+    ctx.restore();
+  };
+  // Torso is the stable anchor. Limbs/head are re-positioned as puppet joints.
+  ctx.save();
+  ctx.scale(pose.squash, 1 / pose.squash);
+  ctx.translate(pose.torsoX, pose.torsoY);
+  ctx.rotate(pose.torsoRot + pose.lean);
+  drawRegion(.24, .27, .52, .43, 0, 42, 0);
+  ctx.restore();
+
+  drawRegion(.28, .04, .44, .27, pose.headX, -dh * .31 + pose.headY, pose.headRot);
+  drawRegion(.02, .27, .27, .38, -dw * .24 + pose.torsoX, 35 + pose.torsoY, pose.leftArm);
+  drawRegion(.71, .27, .27, .38, dw * .24 + pose.torsoX, 35 + pose.torsoY, pose.rightArm);
+  drawRegion(.18, .68, .29, .32, -dw * .12 + pose.torsoX, dh * .38 + pose.torsoY, pose.leftLeg);
+  drawRegion(.53, .68, .29, .32, dw * .12 + pose.torsoX, dh * .38 + pose.torsoY, pose.rightLeg);
+}
+
+function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, action: string, local: number, label: string, image?: HTMLImageElement, emotion = "", mouthOpen = 0, usePuppetRig = true) {
   const motion = characterMotion(action, local);
   const expression = expressionState(emotion, local);
   ctx.save();
@@ -138,7 +212,12 @@ function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, colo
     const ratio = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight);
     const dw = image.naturalWidth * ratio;
     const dh = image.naturalHeight * ratio;
-    ctx.drawImage(image, -dw / 2, -dh + 20, dw, dh);
+    if (usePuppetRig) {
+      const pose = puppetPose(action, local);
+      drawPuppetAsset(ctx, image, pose);
+    } else {
+      ctx.drawImage(image, -dw / 2, -dh + 20, dw, dh);
+    }
 
     // Lightweight facial rig overlay. The asset remains intact while expression,
     // blinking and speech are animated on top of it.
@@ -226,7 +305,7 @@ function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, colo
   ctx.restore();
 }
 
-function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mouthOpen = 0) {
+function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mouthOpen = 0, usePuppetRig = true) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
@@ -279,7 +358,7 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mou
     const actionData = actions.find((a) => a.character === name);
     const action = actionData?.action ?? "idle";
     const emotion = actionData?.emotion || scene?.emotion || "";
-    drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)), emotion, mouthOpen);
+    drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)), emotion, mouthOpen, usePuppetRig);
   });
 
   ctx.restore();
@@ -403,6 +482,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   const [audioBusy, setAudioBusy] = useState(false);
   const [lipSync, setLipSync] = useState(true);
   const [voiceLevels, setVoiceLevels] = useState<Float32Array | null>(null);
+  const [puppetRig, setPuppetRig] = useState(true);
 
   const duration = useMemo(() => durationOf(story), [story]);
   const supported = typeof window !== "undefined" && "VideoEncoder" in window && "VideoFrame" in window;
@@ -452,7 +532,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas) drawFrame(canvas, story, time, lipSync ? mouthLevelAt(voiceLevels, time, duration) : 0);
+    if (canvas) drawFrame(canvas, story, time, lipSync ? mouthLevelAt(voiceLevels, time, duration) : 0, puppetRig);
   }, [story, time, assetsReady, lipSync, voiceLevels, duration]);
 
   useEffect(() => () => {
@@ -542,7 +622,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
       const frames = Math.ceil(duration * FPS);
       for (let i = 0; i < frames; i++) {
         const timestamp = i / FPS;
-        drawFrame(canvas, story, timestamp, lipSync ? mouthLevelAt(voiceLevels, timestamp, duration) : 0);
+        drawFrame(canvas, story, timestamp, lipSync ? mouthLevelAt(voiceLevels, timestamp, duration) : 0, puppetRig);
         await videoSource.add(timestamp, 1 / FPS);
 
         if (i % 15 === 0) {
@@ -611,6 +691,18 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
         <label className="toggle-row">
           <input type="checkbox" checked={lipSync} onChange={(e) => setLipSync(e.target.checked)} disabled={exporting} />
           <span>Enable lip sync</span>
+        </label>
+      </div>
+
+      <div className="puppet-panel">
+        <div>
+          <div className="eyebrow">Phase 6 · 2D Puppet Rig</div>
+          <strong>Independent head, torso, arms and legs</strong>
+          <p className="muted">Actions are converted into joint motion and rendered from the existing full-body artwork.</p>
+        </div>
+        <label className="toggle-row">
+          <input type="checkbox" checked={puppetRig} onChange={(e) => setPuppetRig(e.target.checked)} disabled={exporting} />
+          <span>Enable puppet rig</span>
         </label>
       </div>
 
