@@ -1,6 +1,7 @@
 "use client";
 
 import {useState} from "react";
+import {KokoroTTS} from "kokoro-js";
 import ExplainerMp4Exporter from "./ExplainerMp4Exporter";
 type Beat={narration:string;imagePrompt:string};
 type Timing={index:number;narration:string;start:number;end:number;duration:number};
@@ -24,6 +25,10 @@ export default function TopicExplainerStudio(){
   const [captions,setCaptions]=useState<{text:string;start:number;end:number}[]>([]);
   const [characterBible,setCharacterBible]=useState<{style:string;characters:Character[];continuityRules:string[]}>({style:"gold-linework watercolor editorial illustration, muted palette, cinematic 2D composition",characters:[],continuityRules:[]});
   const [characterLoading,setCharacterLoading]=useState(false);
+  const [voiceMode,setVoiceMode]=useState<"female"|"male"|"mixed">("female");
+  const [femaleVoice,setFemaleVoice]=useState("af_heart");
+  const [maleVoice,setMaleVoice]=useState("am_michael");
+  const [ttsProgress,setTtsProgress]=useState(0);
 
   async function research(){
     if(!topic.trim()) return;
@@ -39,19 +44,39 @@ export default function TopicExplainerStudio(){
     finally{setLoading(false);}
   }
 
+  function wavBlob(samples:Float32Array,sampleRate:number){
+    const buffer=new ArrayBuffer(44+samples.length*2),view=new DataView(buffer);
+    const write=(o:number,s:string)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));};
+    write(0,"RIFF");view.setUint32(4,36+samples.length*2,true);write(8,"WAVE");write(12,"fmt ");view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,sampleRate,true);view.setUint32(28,sampleRate*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);write(36,"data");view.setUint32(40,samples.length*2,true);
+    for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));view.setInt16(44+i*2,s<0?s*0x8000:s*0x7fff,true);}
+    return new Blob([buffer],{type:"audio/wav"});
+  }
   async function generateNarration(){
     if(!beats.length)return;
-    setError("");setTtsLoading(true);
+    setError("");setTtsLoading(true);setTtsProgress(0);
     try{
-      const r=await fetch("/api/explainer/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({script:beats.map(b=>b.narration)})});
-      const j=await r.json();
-      if(!r.ok) throw new Error(j.error||"Narration generation failed.");
-      setTimings(j.timings||[]);setAudioUrl(j.audio||null);
-      setProvider((p)=>p ? p+" · "+(j.provider||"") : (j.provider||""));
-      const cr=await fetch("/api/explainer/captions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({script:beats.map(b=>b.narration),durations:(j.timings||[]).map((x:{duration:number})=>x.duration)})});
-      const cj=await cr.json(); if(cr.ok){setWords(cj.words||[]);setCaptions(cj.captions||[]);}
-    }catch(e){setError(e instanceof Error?e.message:"Narration generation failed.");}
-    finally{setTtsLoading(false);}
+      const tts=await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm"});
+      const chunks:Float32Array[]=[];let sampleRate=24000;
+      const nextVoice=(i:number)=>voiceMode==="female"?femaleVoice:voiceMode==="male"?maleVoice:(i%2===0?femaleVoice:maleVoice);
+      for(let i=0;i<beats.length;i++){
+        const audio=await tts.generate(beats[i].narration,{voice:nextVoice(i)});
+        sampleRate=audio.sampling_rate;
+        chunks.push(audio.data);
+        if(i<beats.length-1)chunks.push(new Float32Array(Math.round(sampleRate*0.08)));
+        setTtsProgress(Math.round(((i+1)/beats.length)*100));
+      }
+      const merged=new Float32Array(chunks.reduce((n,x)=>n+x.length,0));let offset=0;
+      for(const chunk of chunks){merged.set(chunk,offset);offset+=chunk.length;}
+      const url=URL.createObjectURL(wavBlob(merged,sampleRate));
+      setAudioUrl(url);
+      const timings=[];let cursor=0;
+      for(let i=0;i<beats.length;i++){const words=beats[i].narration.trim().split(/\\s+/).length;const duration=Math.max(2.2,words/2.35);timings.push({index:i,narration:beats[i].narration,start:Number(cursor.toFixed(2)),end:Number((cursor+duration).toFixed(2)),duration:Number(duration.toFixed(2))});cursor+=duration;}
+      setTimings(timings);
+      setProvider("Kokoro local · "+voiceMode);
+      const cr=await fetch("/api/explainer/captions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({script:beats.map(b=>b.narration),durations:timings.map(x=>x.duration)})});
+      const cj=await cr.json();if(cr.ok){setWords(cj.words||[]);setCaptions(cj.captions||[]);}
+    }catch(e){setError(e instanceof Error?e.message:"Local Kokoro narration failed.");}
+    finally{setTtsLoading(false);setTtsProgress(0);}
   }
 
   async function generateImages(){
@@ -82,7 +107,12 @@ export default function TopicExplainerStudio(){
       </div>
     </div>
     {beats.length>0&&<div style={{marginTop:20}}>
-      <div className="scenehead"><h3 style={{margin:0}}>Narration beats</h3><button className="secondary" onClick={generateNarration} disabled={ttsLoading}>{ttsLoading?"Generating…":"🎙️ Generate narration timing"}</button><button className="secondary" onClick={generateImages} disabled={imageLoading}>{imageLoading?"Generating images…":"🎨 Generate scene images"}</button></div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+        <select className="input" value={voiceMode} onChange={e=>setVoiceMode(e.target.value as "female"|"male"|"mixed")}><option value="female">Female narrator</option><option value="male">Male narrator</option><option value="mixed">Mixed voices</option></select>
+        <select className="input" value={femaleVoice} onChange={e=>setFemaleVoice(e.target.value)}><option value="af_heart">Female · Heart</option><option value="af_bella">Female · Bella</option><option value="af_nicole">Female · Nicole</option><option value="af_sarah">Female · Sarah</option></select>
+        <select className="input" value={maleVoice} onChange={e=>setMaleVoice(e.target.value)}><option value="am_michael">Male · Michael</option><option value="am_liam">Male · Liam</option><option value="am_adam">Male · Adam</option><option value="am_puck">Male · Puck</option></select>
+      </div>
+      <div className="scenehead"><h3 style={{margin:0}}>Narration beats</h3><button className="secondary" onClick={generateNarration} disabled={ttsLoading}>{ttsLoading?`Generating Kokoro ${ttsProgress}%…`:"🎙️ Generate free narration"}</button><button className="secondary" onClick={generateImages} disabled={imageLoading}>{imageLoading?"Generating images…":"🎨 Generate scene images"}</button></div>
       {beats.map((b,i)=><div className="scene" key={i}><div className="scenehead"><b>Scene {i+1}</b>{timings[i]&&<span className="muted">{timings[i].start}s–{timings[i].end}s</span>}</div><p>{b.narration}</p><div className="muted">Visual: {b.imagePrompt}</div>{images[i]?.status==="generated"&&images[i].image&&<img src={images[i].image} alt={`Scene ${i+1}`} style={{width:"100%",marginTop:12,borderRadius:12}}/>}</div>)}
       {error&&<p className="error">{error}</p>}
     </div>}
