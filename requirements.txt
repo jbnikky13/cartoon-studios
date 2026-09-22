@@ -1,9 +1,0 @@
-streamlit>=1.36,<2
-pillow>=10.0,<12
-imageio-ffmpeg>=0.5.1
-edge-tts>=6.1.12
-requests>=2.31,<3
-beautifulsoup4>=4.12,<5
-yt-dlp>=2026.01.31,<2027
-# Optional speech-to-text:
-# faster-whisper>=1.0,<2
