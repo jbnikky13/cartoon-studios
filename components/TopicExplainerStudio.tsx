@@ -1,6 +1,7 @@
 "use client";
 
 import {useState} from "react";
+import ExplainerMp4Exporter from "./ExplainerMp4Exporter";
 type Beat={narration:string;imagePrompt:string};
 type Timing={index:number;narration:string;start:number;end:number;duration:number};
 
@@ -15,6 +16,9 @@ export default function TopicExplainerStudio(){
   const [provider,setProvider]=useState("");
   const [images,setImages]=useState<{sceneIndex:number;image:string|null;status:string}[]>([]);
   const [imageLoading,setImageLoading]=useState(false);
+  const [audioUrl,setAudioUrl]=useState<string|null>(null);
+  const [words,setWords]=useState<{text:string;start:number;end:number}[]>([]);
+  const [captions,setCaptions]=useState<{text:string;start:number;end:number}[]>([]);
 
   async function research(){
     if(!topic.trim()) return;
@@ -35,8 +39,10 @@ export default function TopicExplainerStudio(){
       const r=await fetch("/api/explainer/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({script:beats.map(b=>b.narration)})});
       const j=await r.json();
       if(!r.ok) throw new Error(j.error||"Narration generation failed.");
-      setTimings(j.timings||[]);
+      setTimings(j.timings||[]);setAudioUrl(j.audio||null);
       setProvider((p)=>p ? p+" · "+(j.provider||"") : (j.provider||""));
+      const cr=await fetch("/api/explainer/captions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({script:beats.map(b=>b.narration),durations:(j.timings||[]).map((x:{duration:number})=>x.duration)})});
+      const cj=await cr.json(); if(cr.ok){setWords(cj.words||[]);setCaptions(cj.captions||[]);}
     }catch(e){setError(e instanceof Error?e.message:"Narration generation failed.");}
     finally{setTtsLoading(false);}
   }
@@ -73,6 +79,6 @@ export default function TopicExplainerStudio(){
       {beats.map((b,i)=><div className="scene" key={i}><div className="scenehead"><b>Scene {i+1}</b>{timings[i]&&<span className="muted">{timings[i].start}s–{timings[i].end}s</span>}</div><p>{b.narration}</p><div className="muted">Visual: {b.imagePrompt}</div>{images[i]?.status==="generated"&&images[i].image&&<img src={images[i].image} alt={`Scene ${i+1}`} style={{width:"100%",marginTop:12,borderRadius:12}}/>}</div>)}
       {error&&<p className="error">{error}</p>}
     </div>}
-    {error&&!beats.length&&<p className="error">{error}</p>}
+    {error&&!beats.length&&<p className="error">{error}</p>}\n    {beats.length>0&&images.length>0&&<ExplainerMp4Exporter scenes={beats.map((b,i)=>({narration:b.narration,duration:timings[i]?.duration||2.5,image:images[i]?.image||null}))} words={words} captions={captions} audioUrl={audioUrl}/>}
   </section>;
 }
