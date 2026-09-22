@@ -469,7 +469,7 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mou
   cast.slice(0, 5).forEach((name, i) => {
     const actionData = actions.find((a) => a.character === name);
     const compiled = scene ? compiledClipFor(compiledClips, scene, name) : null;
-    const action = actionOverrides[actionOverrideKey(scene!, name)] ?? compiled?.action ?? actionData?.action ?? "idle";
+    const action = (scene ? actionOverrides[actionOverrideKey(scene, name)] : undefined) ?? compiled?.action ?? actionData?.action ?? "idle";
     const emotion = actionData?.emotion || scene?.emotion || "";
     drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)), emotion, mouthOpen, usePuppetRig);
   });
