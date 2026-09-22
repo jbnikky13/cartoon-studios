@@ -3,7 +3,7 @@ import sys, os
 from pathlib import Path
 import streamlit as st
 
-st.set_page_config(page_title="Cartoon Studio V7", page_icon="🎬", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Cartoon Studio V8", page_icon="🎬", layout="wide", initial_sidebar_state="expanded")
 
 REALITYBLEND_AVAILABLE = False; REALITYBLEND_ERROR = None
 try:
@@ -55,8 +55,8 @@ def apply_classic_motion_override(label):
         pass
 
 st.markdown("<style>.block-container{padding-top:1.5rem;padding-bottom:3rem}</style>", unsafe_allow_html=True)
-st.title("🎬 Cartoon Studio V7")
-st.caption("Classic cartoons, photoreal AI microdramas, RealityBlend scenes, and Discovery Story videos — one studio.")
+st.title("🎬 Cartoon Studio V8")
+st.caption("Turn songs into stories: lyrics → AI Director → storyboard → character actions → cartoon video.")
 
 with st.sidebar:
     st.header("🎛️ Studio")
@@ -117,7 +117,7 @@ elif mode == "🎞️ Join Clips":
             data = Path(result_path).read_bytes(); st.video(data); st.download_button("⬇️ Download Joined MP4", data=data, file_name="joined_episode.mp4", mime="video/mp4")
 
 st.divider()
-with st.expander("🔧 V7 Diagnostics"):
+with st.expander("🔧 V8 Diagnostics"):
     st.write("Python:", sys.version.split()[0])
     st.write("Modes", {"Song → Story": SONG_STORY_AVAILABLE, "Photoreal Microdrama": PHOTOREAL_AVAILABLE, "Classic Cartoon": CLASSIC_AVAILABLE, "RealityBlend": REALITYBLEND_AVAILABLE, "Discovery Story": EVIDENCE_BOARD_AVAILABLE})
     st.write("Motion engine:", Path("motion_presets.py").exists())
@@ -126,4 +126,4 @@ with st.expander("🔧 V7 Diagnostics"):
     st.write("Photoreal engine:", Path("photoreal_engine.py").exists())
     st.write("Photoreal UI:", Path("photoreal_ui.py").exists())
     st.write("Discovery Story engine:", Path("evidence_link_story.py").exists())
-st.caption("Cartoon Studio V7")
+st.caption("Cartoon Studio V8 · Song → Story")
