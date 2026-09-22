@@ -27,9 +27,9 @@ export default function TopicExplainerStudio(){
 
   async function research(){
     if(!topic.trim()) return;
-    setError("");setLoading(true);setBeats([]);setTimings([]);
+    setError("");setLoading(true);setBeats([]);setTimings([]);setImages([]);setAudioUrl(null);
     try{
-      const r=await fetch("/api/explainer/topic",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({topic,beatCount:10})});
+      const r=await fetch("/api/explainer/topic",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({topic,beatCount:10,urls:researchLinks.split(/\s+/).map(s=>s.trim()).filter(Boolean)})});
       const j=await r.json();
       if(!r.ok) throw new Error(j.error||"Topic research failed.");
       setBeats(j.beats||[]);setSources(j.sources||[]);setProvider(j.provider||"");
@@ -37,10 +37,6 @@ export default function TopicExplainerStudio(){
       try{const cr=await fetch("/api/explainer/characters",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({topic,script:(j.beats||[]).map((b:Beat)=>b.narration)})});const cj=await cr.json();if(cr.ok)setCharacterBible(cj);}catch(e){setError(e instanceof Error?e.message:"Character planning failed.");}finally{setCharacterLoading(false);}
     }catch(e){setError(e instanceof Error?e.message:"Topic research failed.");}
     finally{setLoading(false);}
-    if(!beats.length)return;
-    setCharacterLoading(true);
-    try{const cr=await fetch("/api/explainer/characters",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({topic,script:beats.map(b=>b.narration)})});const cj=await cr.json();if(cr.ok)setCharacterBible(cj);}
-    catch(e){setError(e instanceof Error?e.message:"Character planning failed.");}finally{setCharacterLoading(false);}
   }
 
   async function generateNarration(){
@@ -78,7 +74,7 @@ export default function TopicExplainerStudio(){
       <div>
         <label className="label">Topic</label>
         <textarea className="input" rows={4} value={topic} onChange={e=>setTopic(e.target.value)} placeholder="e.g. How does Bitcoin mining work?"/>
-        <button className="primary" onClick={research} disabled={loading||!topic.trim()}>{loading?"Researching…":"🔎 Research & write script"}</button>
+        <textarea className="input" rows={3} value={researchLinks} onChange={e=>setResearchLinks(e.target.value)} placeholder="Optional source links (one URL per line)"/><button className="primary" onClick={research} disabled={loading||!topic.trim()}>{loading?"Researching…":"🔎 Research & write script"}</button>
       </div>
       <div>
         {provider&&<p className="muted">Pipeline: {provider}</p>}
