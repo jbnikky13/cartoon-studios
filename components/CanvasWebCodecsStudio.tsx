@@ -431,6 +431,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
 
     try {
       if (!supported) throw new Error("WebCodecs is not available in this browser. Try a recent Chrome or Edge.");
+      if (!assetsReady && characterNames.length) throw new Error("Character assets are still loading. Please wait a moment and export again.");
 
       const output = new Output({
         format: new Mp4OutputFormat({ fastStart: "in-memory" }),
