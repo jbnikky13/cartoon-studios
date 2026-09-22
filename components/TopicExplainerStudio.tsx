@@ -4,6 +4,7 @@ import {useState} from "react";
 import ExplainerMp4Exporter from "./ExplainerMp4Exporter";
 type Beat={narration:string;imagePrompt:string};
 type Timing={index:number;narration:string;start:number;end:number;duration:number};
+type Character={id:string;name:string;role:string;appearance:string;outfit:string;palette:string;personality:string};
 
 export default function TopicExplainerStudio(){
   const [topic,setTopic]=useState("");
@@ -19,6 +20,8 @@ export default function TopicExplainerStudio(){
   const [audioUrl,setAudioUrl]=useState<string|null>(null);
   const [words,setWords]=useState<{text:string;start:number;end:number}[]>([]);
   const [captions,setCaptions]=useState<{text:string;start:number;end:number}[]>([]);
+  const [characterBible,setCharacterBible]=useState<{style:string;characters:Character[];continuityRules:string[]}>({style:"gold-linework watercolor editorial illustration, muted palette, cinematic 2D composition",characters:[],continuityRules:[]});
+  const [characterLoading,setCharacterLoading]=useState(false);
 
   async function research(){
     if(!topic.trim()) return;
@@ -30,6 +33,10 @@ export default function TopicExplainerStudio(){
       setBeats(j.beats||[]);setSources(j.sources||[]);setProvider(j.provider||"");
     }catch(e){setError(e instanceof Error?e.message:"Topic research failed.");}
     finally{setLoading(false);}
+    if(!beats.length)return;
+    setCharacterLoading(true);
+    try{const cr=await fetch("/api/explainer/characters",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({topic,script:beats.map(b=>b.narration)})});const cj=await cr.json();if(cr.ok)setCharacterBible(cj);}
+    catch(e){setError(e instanceof Error?e.message:"Character planning failed.");}finally{setCharacterLoading(false);}
   }
 
   async function generateNarration(){
@@ -51,7 +58,7 @@ export default function TopicExplainerStudio(){
     if(!beats.length)return;
     setError("");setImageLoading(true);
     try{
-      const r=await fetch("/api/explainer/images",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({topic,scenes:beats.map((b,i)=>({index:i,narration:b.narration,imagePrompt:b.imagePrompt})),characterBible:{style:"gold-linework watercolor editorial illustration, muted palette, cinematic 2D composition",characters:[],continuityRules:["Topic-specific characters only","Preserve recurring faces, outfits and proportions"]}})});
+      const r=await fetch("/api/explainer/images",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({topic,scenes:beats.map((b,i)=>({index:i,narration:b.narration,imagePrompt:b.imagePrompt})),characterBible})});
       const j=await r.json();
       if(!r.ok)throw new Error(j.error||"Image generation failed.");
       setImages(j.scenes||[]);setProvider(j.provider||"");
