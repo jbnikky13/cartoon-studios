@@ -29,3 +29,7 @@
 .compiler-row{display:grid;grid-template-columns:42px 1.3fr 1fr 1fr;gap:10px;align-items:center;padding:9px 10px;border-top:1px solid #252835;font-size:12px}
 .compiler-scene{font-weight:900}.compiler-emotion{text-transform:capitalize;color:#9b7cff}
 @media(max-width:700px){.compiler-row{grid-template-columns:34px 1fr 1fr}.compiler-emotion{display:none}}
+
+.camera-panel{margin-top:18px;padding:16px;border:1px solid #292c38;border-radius:16px;background:rgba(255,255,255,.025)}
+.camera-presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.camera-chip{padding:7px 10px;border:1px solid #353846;border-radius:999px;font-size:12px;text-transform:capitalize;color:#bfc5d9}
+.camera-panel select{border:1px solid #353846;background:#151722;color:#fff;border-radius:9px;padding:8px 10px}
