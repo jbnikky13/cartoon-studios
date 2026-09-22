@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 
 function meta(html:string,key:string){
-  const pattern='<meta[^>]+(?:property|name)=["\\']'+key+'["\\'][^>]+content=["\\']([^"\\']+)["\\']';
+  const pattern=`<meta[^>]+(?:property|name)=["']${key}["'][^>]+content=["']([^"']+)["']`;
   const match=new RegExp(pattern,"i").exec(html);
   return match?.[1]||"";
 }
 function abs(base:string,value:string){try{return new URL(value,base).toString()}catch{return ""}}
-function strip(html:string){return html.replace(/<script[\\s\\S]*?<\\/script>/gi," ").replace(/<style[\\s\\S]*?<\\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/\\s+/g," ").trim()}
+function strip(html:string){return html.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/\s+/g," ").trim()}
 
 export async function POST(req:Request){
   try{
@@ -18,7 +18,7 @@ export async function POST(req:Request){
     const res=await fetch(parsed.toString(),{headers:{"user-agent":"CartoonStudioDiscovery/1.0"},signal:AbortSignal.timeout(15000)});
     if(!res.ok)throw new Error("The webpage could not be fetched.");
     const html=await res.text();
-    const title=meta(html,"og:title")||meta(html,"twitter:title")||(/<title[^>]*>([\\s\\S]*?)<\\/title>/i.exec(html)?.[1]||"Discovery Story").replace(/\\s+/g," ").trim();
+    const title=meta(html,"og:title")||meta(html,"twitter:title")||(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]||"Discovery Story").replace(/\s+/g," ").trim();
     const description=meta(html,"og:description")||meta(html,"description");
     const imageUrls:string[]=[];
     const contexts:string[]=[];
@@ -29,7 +29,7 @@ export async function POST(req:Request){
       if(imageUrl&&/^https?:/.test(imageUrl)&&!imageUrls.includes(imageUrl)){imageUrls.push(imageUrl);contexts.push("")}
     }
     const text=strip(html).slice(0,18000);
-    const sentences=text.split(/(?<=[.!?])\\s+/).filter((s:string)=>s.length>40).slice(0,8);
+    const sentences=text.split(/(?<=[.!?])\s+/).filter((s:string)=>s.length>40).slice(0,8);
     return NextResponse.json({story:{title,description,sourceUrl:res.url,text,imageUrls,imageContexts:contexts,sentences}});
   }catch(e){
     return NextResponse.json({error:e instanceof Error?e.message:"Discovery failed."},{status:500});
