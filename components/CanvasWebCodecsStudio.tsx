@@ -414,7 +414,10 @@ function compiledClipFor(clips: CompiledClip[], scene: Scene, character: string)
 type CameraPreset = "wide" | "medium" | "close" | "pan-left" | "pan-right" | "zoom-in" | "zoom-out";
 
 function cameraPresetAt(scene: Scene | null, local: number): CameraPreset {
-  const explicit = String(scene?.camera?.preset ?? "").toLowerCase();
+  const cameraValue = scene?.camera;
+  const explicit = typeof cameraValue === "object" && cameraValue !== null
+    ? String((cameraValue as { preset?: unknown }).preset ?? "").toLowerCase()
+    : "";
   if (["wide","medium","close","pan-left","pan-right","zoom-in","zoom-out"].includes(explicit)) return explicit as CameraPreset;
   if (local < 0.2) return "wide";
   if (local > 0.82) return "medium";
