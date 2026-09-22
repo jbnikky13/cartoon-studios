@@ -325,7 +325,13 @@ function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, colo
   ctx.restore();
 }
 
-function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mouthOpen = 0, usePuppetRig = true) {
+type ActionOverrides = Record<string, string>;
+
+function actionOverrideKey(scene: Scene, character: string) {
+  return `${scene.number}::${character}`;
+}
+
+function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mouthOpen = 0, usePuppetRig = true, actionOverrides: ActionOverrides = {}) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
@@ -376,7 +382,7 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mou
 
   cast.slice(0, 5).forEach((name, i) => {
     const actionData = actions.find((a) => a.character === name);
-    const action = actionData?.action ?? "idle";
+    const action = actionOverrides[actionOverrideKey(scene!, name)] ?? actionData?.action ?? "idle";
     const emotion = actionData?.emotion || scene?.emotion || "";
     drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)), emotion, mouthOpen, usePuppetRig);
   });
@@ -503,6 +509,8 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   const [lipSync, setLipSync] = useState(true);
   const [voiceLevels, setVoiceLevels] = useState<Float32Array | null>(null);
   const [puppetRig, setPuppetRig] = useState(true);
+  const [actionOverrides, setActionOverrides] = useState<ActionOverrides>({});
+  const [selectedSceneNumber, setSelectedSceneNumber] = useState<number | null>(null);
 
   const duration = useMemo(() => durationOf(story), [story]);
   const supported = typeof window !== "undefined" && "VideoEncoder" in window && "VideoFrame" in window;
@@ -552,7 +560,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas) drawFrame(canvas, story, time, lipSync ? mouthLevelAt(voiceLevels, time, duration) : 0, puppetRig);
+    if (canvas) drawFrame(canvas, story, time, lipSync ? mouthLevelAt(voiceLevels, time, duration) : 0, puppetRig, actionOverrides);
   }, [story, time, assetsReady, lipSync, voiceLevels, duration]);
 
   useEffect(() => () => {
@@ -603,6 +611,24 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
     }
   }
 
+
+
+  const timelineScenes = story.scenes ?? [];
+  const selectedScene = timelineScenes.find((s) => s.number === selectedSceneNumber) ?? timelineScenes[0] ?? null;
+  const selectedActions = selectedScene?.actions ?? [];
+  const actionLibrary = ["idle", "talk", "walk", "run", "wave", "jump", "dance", "sit"];
+
+  function setClipAction(sceneNumber: number, character: string, action: string) {
+    setActionOverrides((current) => ({
+      ...current,
+      [`${sceneNumber}::${character}`]: action,
+    }));
+  }
+
+  function resetTimelineEdits() {
+    setActionOverrides({});
+  }
+
   async function exportMp4() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -642,7 +668,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
       const frames = Math.ceil(duration * FPS);
       for (let i = 0; i < frames; i++) {
         const timestamp = i / FPS;
-        drawFrame(canvas, story, timestamp, lipSync ? mouthLevelAt(voiceLevels, timestamp, duration) : 0, puppetRig);
+        drawFrame(canvas, story, timestamp, lipSync ? mouthLevelAt(voiceLevels, timestamp, duration) : 0, puppetRig, actionOverrides);
         await videoSource.add(timestamp, 1 / FPS);
 
         if (i % 15 === 0) {
@@ -700,6 +726,57 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
         <button className="primary render-button" onClick={exportMp4} disabled={exporting || !supported}>
           {exporting ? "Encoding…" : "🎬 Export MP4"}
         </button>
+      </div>
+
+
+
+      <div className="timeline-panel">
+        <div className="timeline-head">
+          <div>
+            <div className="eyebrow">Phase 9 · Animation Timeline</div>
+            <strong>Reusable action clips</strong>
+            <p className="muted">Select a scene, choose a character, then apply an action clip. Timeline edits are used in preview and MP4 export.</p>
+          </div>
+          <button className="secondary" onClick={resetTimelineEdits} disabled={exporting || !Object.keys(actionOverrides).length}>Reset edits</button>
+        </div>
+
+        <div className="scene-timeline">
+          {timelineScenes.map((scene) => {
+            const active = (selectedScene?.number ?? timelineScenes[0]?.number) === scene.number;
+            return (
+              <button key={scene.number} className={active ? "scene-chip active" : "scene-chip"}
+                onClick={() => { setSelectedSceneNumber(scene.number); setPlaying(false); setTime(scene.start); }} disabled={exporting}>
+                <span>Scene {scene.number}</span>
+                <small>{scene.start.toFixed(1)}s–{scene.end.toFixed(1)}s</small>
+              </button>
+            );
+          })}
+        </div>
+
+        {selectedScene && (
+          <div className="clip-editor">
+            {selectedActions.length ? selectedActions.map((actionData) => {
+              const key = actionOverrideKey(selectedScene, actionData.character);
+              const current = actionOverrides[key] ?? actionData.action ?? "idle";
+              return (
+                <div className="clip-row" key={actionData.character}>
+                  <div className="clip-character">
+                    <strong>{actionData.character}</strong>
+                    <small>{current}</small>
+                  </div>
+                  <div className="clip-buttons">
+                    {actionLibrary.map((clip) => (
+                      <button key={clip} className={current.toLowerCase() === clip ? "clip-button selected" : "clip-button"}
+                        onClick={() => setClipAction(selectedScene.number, actionData.character, clip)} disabled={exporting}>
+                        {clip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            }) : <p className="muted">No character actions in this scene.</p>}
+          </div>
+        )}
       </div>
 
       <div className="rig-panel">
