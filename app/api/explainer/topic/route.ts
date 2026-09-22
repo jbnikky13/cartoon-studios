@@ -26,7 +26,8 @@ function stripHtml(html:string) {
 }
 
 function meta(html:string,key:string) {
-  const re = new RegExp('<meta\\b[^>]*(?:property|name)=["\\']'+key.replace(/[.*+?^()|[\]\\]/g,"\\$&")+'["\\'][^>]*content=["\\']([^"\\']*)["\\'][^>]*>',"i");
+  const escapedKey = key.replace(/[.*+?^{}()|[\\]\\\\]/g, "\\\\$&");
+  const re = new RegExp("<meta\\\\b[^>]*(?:property|name)=['\\\"]"+escapedKey+"['\\\"][^>]*content=['\\\"]([^'\\\"]*)['\\\"][^>]*>", "i");
   return re.exec(html)?.[1] || "";
 }
 
