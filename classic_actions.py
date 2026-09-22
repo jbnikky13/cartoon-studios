@@ -1,7 +1,7 @@
 """True actions + per-character timeline adapter for Classic Cartoon."""
 import math
 
-ACTION_PRESETS=["Idle","Walk In","Walk","Run","Jump","Dance","Celebrate","Crouch","Slide Left","Slide Right","Exit Right"]
+ACTION_PRESETS=["Idle","Walk In","Walk","Run","Jump","Dance","Celebrate","Crouch","Slide Left","Slide Right","Exit Right","Talk","Wave","Point","Think","Look","Look Right","Look Left","Turn","Hug","Cry","Laugh","React","Surprised","Angry","Sad"]
 
 def action_offsets(action,t,seed=0):
     a=(action or "Idle").lower(); dx=dy=rot=0.0; posture=None
@@ -16,6 +16,7 @@ def action_offsets(action,t,seed=0):
     elif a=="slide left": dx=-120*min(1,t/1.2)
     elif a=="slide right": dx=120*min(1,t/1.2)
     elif a=="exit right": dx=.55*min(1,max(0,t/1.8)); dy=-abs(math.sin(t*9+seed))*.012; rot=math.sin(t*9+seed)*2
+    elif a in ("talk","think","look","look right","look left","turn","react","surprised","angry","sad","cry","laugh","wave","point","hug"): dy=-abs(math.sin(t*5+seed))*.008; rot=math.sin(t*3+seed)*1.2
     return dx,dy,rot,posture
 
 def patch_classic_module(classic_module):
@@ -31,6 +32,18 @@ def patch_classic_module(classic_module):
                 action,_=active_action(timeline,frame/24.0,"Idle")
             else: action=st.session_state.get(f"v6_action_{name}","Idle")
         except Exception: pass
+        parts=[p.strip() for p in str(action).split("|")]
+        action=parts[0] if parts else "Idle"
+        meta={}
+        for part in parts[1:]:
+            if "=" in part:
+                k,v=part.split("=",1); meta[k.strip().lower()]=v.strip()
+        al=action.lower()
+        expression_map={"sad":"Sad","cry":"Sad","angry":"Annoyed","surprised":"Surprised","laugh":"Laughing","think":"Thinking","hug":"Happy"}
+        gesture_map={"talk":"Talking Hands","wave":"Waving","point":"Pointing","think":"Thinking","hug":"Shrugging","laugh":"Laughing","cry":"Nervous","sad":"Thinking"}
+        expression=meta.get("emotion",expression_map.get(al,expression))
+        gesture=meta.get("gesture",gesture_map.get(al,gesture))
+        talking=talking or al in ("talk","speak")
         dx,dy,rot,posture_override=action_offsets(action,frame/24.0,seed)
         if posture_override: posture=posture_override
         return original(draw,name,cx+dx,ground+dy,frame,seed,expression=expression,posture=posture,gesture=gesture,talking=talking,look_x=look_x,scale=scale,style=style,mouth_frame=mouth_frame)
