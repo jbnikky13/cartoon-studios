@@ -23,16 +23,24 @@ function buildStory(song:Song): Story {
   const hasHope = ["hope","rise","light","strong","again","better","free"].some(w=>words.has(w));
 
   const theme = hasLove ? "connection and emotional closeness" : hasHope ? "resilience and moving forward" : hasSad ? "finding meaning after a difficult moment" : hasDance ? "freedom, movement and shared energy" : "self-discovery and momentum";
+  const characterLibrary = [
+    "ayo_finch","biko_bean","dex_orbit","jax_noon","kemi_bolt","milo_quirk",
+    "nala_vee","professor_pogo","rhea_moss","simi_ray","tari_reed","zuri_spark"
+  ] as const;
+  const seed = title.split("").reduce((n,ch)=>n + ch.charCodeAt(0),0);
+  const leadId = characterLibrary[seed % characterLibrary.length];
+  const supportId = characterLibrary[(seed + (hasLove ? 3 : hasDance ? 5 : 1)) % characterLibrary.length];
+  const characterName = (id:string) => id.split("_").map(part=>part.charAt(0).toUpperCase()+part.slice(1)).join(" ");
   const arc = hasSad && hasHope ? ["restless","reflective","hopeful","uplifted"] : hasSad ? ["restless","reflective","accepting","quiet"] : hasDance ? ["curious","energized","joyful","liberated"] : ["curious","immersed","determined","fulfilled"];
   const setting = hasNight ? "a glowing city at night" : "a stylized neighborhood at golden hour";
   const step = duration / 4;
   const scenes:Scene[] = [
-    {number:1,title:"The First Beat",start:0,end:Math.round(step),summary:`A lone character enters ${setting}, noticing a small visual detail that mirrors the song's mood.`,emotion:arc[0],setting,camera:"slow establishing push-in",actions:[{character:"Lead",action:"walk_in",emotion:arc[0]},{character:"Lead",action:"look",gesture:"pause and notice"}]},
-    {number:2,title:"The World Responds",start:Math.round(step),end:Math.round(step*2),summary:`The environment begins reacting to the rhythm as the character follows the feeling of “${title}”.`,emotion:arc[1],setting,camera:"gentle tracking shot",actions:[{character:"Lead",action:hasDance?"dance":"walk",emotion:arc[1]},{character:"Lead",action:"look_right",gesture:"follow the movement"}]},
-    {number:3,title:"The Turning Point",start:Math.round(step*2),end:Math.round(step*3),summary:hasLove?"The character reaches another figure and the emotional distance between them closes.":hasSad?"The character stops, faces the difficult feeling, and chooses to keep moving.":"The character reaches a turning point and commits to the next step.",emotion:arc[2],setting,camera:"medium orbit",actions:[{character:"Lead",action:"think",emotion:arc[2]},{character:hasLove?"Friend":"Lead",action:hasLove?"walk_in":"point",gesture:hasLove?"open arms":"look toward the horizon"}]},
-    {number:4,title:"The Release",start:Math.round(step*3),end:duration,summary:`The final movement opens the frame into a clear visual resolution, leaving the character changed by the journey.`,emotion:arc[3],setting,camera:"wide pull-back",actions:[{character:"Lead",action:hasDance?"dance":"walk",emotion:arc[3]},{character:"Lead",action:"wave",gesture:"face the horizon"}]}
+    {number:1,title:"The First Beat",start:0,end:Math.round(step),summary:`A lone character enters ${setting}, noticing a small visual detail that mirrors the song's mood.`,emotion:arc[0],setting,camera:"slow establishing push-in",actions:[{character:characterName(leadId),action:"walk_in",emotion:arc[0]},{character:"Lead",action:"look",gesture:"pause and notice"}]},
+    {number:2,title:"The World Responds",start:Math.round(step),end:Math.round(step*2),summary:`The environment begins reacting to the rhythm as the character follows the feeling of “${title}”.`,emotion:arc[1],setting,camera:"gentle tracking shot",actions:[{character:characterName(leadId),action:hasDance?"dance":"walk",emotion:arc[1]},{character:"Lead",action:"look_right",gesture:"follow the movement"}]},
+    {number:3,title:"The Turning Point",start:Math.round(step*2),end:Math.round(step*3),summary:hasLove?"The character reaches another figure and the emotional distance between them closes.":hasSad?"The character stops, faces the difficult feeling, and chooses to keep moving.":"The character reaches a turning point and commits to the next step.",emotion:arc[2],setting,camera:"medium orbit",actions:[{character:characterName(leadId),action:"think",emotion:arc[2]},{character:hasLove?characterName(supportId):characterName(leadId),action:hasLove?"walk_in":"point",gesture:hasLove?"open arms":"look toward the horizon"}]},
+    {number:4,title:"The Release",start:Math.round(step*3),end:duration,summary:`The final movement opens the frame into a clear visual resolution, leaving the character changed by the journey.`,emotion:arc[3],setting,camera:"wide pull-back",actions:[{character:characterName(leadId),action:hasDance?"dance":"walk",emotion:arc[3]},{character:characterName(leadId),action:"wave",gesture:"face the horizon"}]}
   ];
-  return {story_title:`${title}: ${arc[3]}`,mode:"Canvas Story Director",logline:`${artist}'s “${title}” becomes a compact visual journey about ${theme}.`,theme,emotional_arc:arc,characters:[{role:"Lead",description:"A lightweight 2D protagonist whose movement carries the song's emotional arc."},{role:hasLove?"Friend":"Environment",description:hasLove?"A supporting presence that gives the emotional turning point a visual payoff.":"A responsive world that changes with the rhythm and mood."}],scenes};
+  return {story_title:`${title}: ${arc[3]}`,mode:"Canvas Story Director",logline:`${artist}'s “${title}” becomes a compact visual journey about ${theme}.`,theme,emotional_arc:arc,characters:[{role:characterName(leadId),description:"Primary Cartoon Studio character asset selected from the built-in full-body character library."},...(hasLove?[{role:characterName(supportId),description:"Supporting Cartoon Studio character asset selected for the emotional turning point."}]:[])],scenes};
 }
 
 export async function POST(req:Request){
