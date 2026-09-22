@@ -128,7 +128,8 @@ export async function POST(req:Request) {
     const topic=typeof body==="object"&&body!==null&&"topic" in body ? String((body as {topic?:unknown}).topic||"").trim() : "";
     if(!topic) return NextResponse.json({error:"A topic is required."},{status:400});
 
-    const candidates=await searchDuckDuckGo(topic);\n    if(!candidates.length) return NextResponse.json({error:"Search provider returned no results. You can retry or configure SERPAPI_KEY/BING_SEARCH_KEY for a more reliable provider."},{status:502});
+    const candidates = await searchDuckDuckGo(topic);
+    if (!candidates.length) return NextResponse.json({error:"Search provider returned no results. You can retry or configure SERPAPI_KEY/BING_SEARCH_KEY for a more reliable provider."},{status:502});
     const sources:Source[]=[];
     const seen=new Set<string>();
     for(const url of candidates) {
