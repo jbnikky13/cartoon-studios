@@ -6,3 +6,5 @@
 .asset-status{margin-top:10px;padding:8px 12px;border-radius:10px;background:rgba(155,124,255,.08);font-size:13px}.asset-status::before{content:"◉";margin-right:7px;color:#9b7cff}
 
 .rig-panel{margin-top:18px;padding:16px;border:1px solid #292c38;border-radius:16px;background:rgba(155,124,255,.06);display:flex;justify-content:space-between;align-items:center;gap:18px}.toggle-row{display:flex;align-items:center;gap:9px;white-space:nowrap;font-weight:800;font-size:13px}.toggle-row input{width:18px;height:18px}@media(max-width:700px){.rig-panel{flex-direction:column;align-items:flex-start}}
+
+.puppet-panel{margin-top:18px;padding:16px;border:1px solid #292c38;border-radius:16px;background:rgba(83,216,251,.05);display:flex;justify-content:space-between;align-items:center;gap:18px}.puppet-panel strong{display:block;font-size:16px;margin-top:3px}@media(max-width:700px){.puppet-panel{flex-direction:column;align-items:flex-start}}
