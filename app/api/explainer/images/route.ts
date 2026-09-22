@@ -37,7 +37,7 @@ async function searchWikimedia(query:string):Promise<string[]>{
     const r=await fetch("https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(query)+"&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url|mime&iiurlwidth=1280&format=json",{headers:{"user-agent":"CartoonStudios/1.0"},signal:AbortSignal.timeout(10000)});
     if(!r.ok)return [];
     const d=await r.json();
-    return Object.values(d?.query?.pages||{}).map((p:any)=>p?.imageinfo?.[0]?.thumburl||p?.imageinfo?.[0]?.url||"").filter((u:string)=>/^https?:\\/\\//.test(u));
+    return Object.values(d?.query?.pages||{}).map((p:any)=>p?.imageinfo?.[0]?.thumburl||p?.imageinfo?.[0]?.url||"").filter((u:string)=>u.startsWith("http://")||u.startsWith("https://"));
   }catch{return [];}
 }
 async function fetchAsDataUrl(url:string){
