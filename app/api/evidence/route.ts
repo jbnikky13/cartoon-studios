@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 
 function getMeta(html: string, key: string): string {
-  const escaped = key.replace(/[.*+?^()|[\]\\]/g, "\\$&");
-  const property = new RegExp('<meta[^>]+property=["\\\\']' + escaped + '["\\\\'][^>]+content=["\\\\']([^"\\\\']+)["\\\\']', "i");
-  const name = new RegExp('<meta[^>]+name=["\\\\']' + escaped + '["\\\\'][^>]+content=["\\\\']([^"\\\\']+)["\\\\']', "i");
-  return property.exec(html)?.[1] ?? name.exec(html)?.[1] ?? "";
+  for (const tagMatch of html.matchAll(/<meta\b[^>]*>/gi)) {
+    const tag = tagMatch[0];
+    const keyMatch = /(?:property|name)\s*=\s*["']([^"']+)["']/i.exec(tag);
+    const contentMatch = /content\s*=\s*["']([^"']*)["']/i.exec(tag);
+    if (keyMatch?.[1]?.toLowerCase() === key.toLowerCase() && contentMatch?.[1]) {
+      return contentMatch[1];
+    }
+  }
+  return "";
 }
 
 function resolveUrl(base: string, value: string): string {
