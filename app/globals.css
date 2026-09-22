@@ -8,3 +8,17 @@
 .rig-panel{margin-top:18px;padding:16px;border:1px solid #292c38;border-radius:16px;background:rgba(155,124,255,.06);display:flex;justify-content:space-between;align-items:center;gap:18px}.toggle-row{display:flex;align-items:center;gap:9px;white-space:nowrap;font-weight:800;font-size:13px}.toggle-row input{width:18px;height:18px}@media(max-width:700px){.rig-panel{flex-direction:column;align-items:flex-start}}
 
 .puppet-panel{margin-top:18px;padding:16px;border:1px solid #292c38;border-radius:16px;background:rgba(83,216,251,.05);display:flex;justify-content:space-between;align-items:center;gap:18px}.puppet-panel strong{display:block;font-size:16px;margin-top:3px}@media(max-width:700px){.puppet-panel{flex-direction:column;align-items:flex-start}}
+
+.timeline-panel{margin-top:18px;padding:16px;border:1px solid #292c38;border-radius:16px;background:rgba(255,255,255,.025)}
+.timeline-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
+.scene-timeline{display:flex;gap:8px;overflow-x:auto;padding:14px 0 10px}
+.scene-chip{min-width:110px;padding:10px 12px;border:1px solid #343746;border-radius:11px;background:#11131c;color:#d9dced;text-align:left;cursor:pointer}
+.scene-chip.active{border-color:#9b7cff;background:rgba(155,124,255,.12)}
+.scene-chip span,.scene-chip small{display:block}.scene-chip span{font-weight:800}.scene-chip small{margin-top:4px;color:#9299b0}
+.clip-editor{display:grid;gap:10px}
+.clip-row{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;padding:12px;border-top:1px solid #252835}
+.clip-character small{display:block;color:#9b7cff;margin-top:3px;text-transform:capitalize}
+.clip-buttons{display:flex;flex-wrap:wrap;gap:7px}
+.clip-button{border:1px solid #353846;background:#151722;color:#bfc5d9;border-radius:9px;padding:7px 10px;font-size:12px;text-transform:capitalize;cursor:pointer}
+.clip-button.selected{border-color:#9b7cff;background:rgba(155,124,255,.16);color:#fff}
+@media(max-width:700px){.timeline-head{flex-direction:column}.clip-row{grid-template-columns:1fr}.clip-buttons{overflow-x:auto;flex-wrap:nowrap}}
