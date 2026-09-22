@@ -417,7 +417,7 @@ function actionOverrideKey(scene: Scene, character: string) {
   return `${scene.number}::${character}`;
 }
 
-function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mouthOpen = 0, usePuppetRig = true, actionOverrides: ActionOverrides = {}) {
+function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mouthOpen = 0, usePuppetRig = true, actionOverrides: ActionOverrides = {}, compiledClips: CompiledClip[] = []) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
@@ -468,7 +468,7 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mou
 
   cast.slice(0, 5).forEach((name, i) => {
     const actionData = actions.find((a) => a.character === name);
-    const compiled = compiledClipFor(compiledClips, scene!, name);
+    const compiled = scene ? compiledClipFor(compiledClips, scene, name) : null;
     const action = actionOverrides[actionOverrideKey(scene!, name)] ?? compiled?.action ?? actionData?.action ?? "idle";
     const emotion = actionData?.emotion || scene?.emotion || "";
     drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)), emotion, mouthOpen, usePuppetRig);
@@ -648,8 +648,8 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas) drawFrame(canvas, story, time, lipSync ? mouthLevelAt(voiceLevels, time, duration) : 0, puppetRig, actionOverrides);
-  }, [story, time, assetsReady, lipSync, voiceLevels, duration]);
+    if (canvas) drawFrame(canvas, story, time, lipSync ? mouthLevelAt(voiceLevels, time, duration) : 0, puppetRig, actionOverrides, compiledClips);
+  }, [story, time, assetsReady, lipSync, voiceLevels, duration, puppetRig, actionOverrides, compiledClips]);
 
   useEffect(() => () => {
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
@@ -756,7 +756,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
       const frames = Math.ceil(duration * FPS);
       for (let i = 0; i < frames; i++) {
         const timestamp = i / FPS;
-        drawFrame(canvas, story, timestamp, lipSync ? mouthLevelAt(voiceLevels, timestamp, duration) : 0, puppetRig, actionOverrides);
+        drawFrame(canvas, story, timestamp, lipSync ? mouthLevelAt(voiceLevels, timestamp, duration) : 0, puppetRig, actionOverrides, compiledClips);
         await videoSource.add(timestamp, 1 / FPS);
 
         if (i % 15 === 0) {
