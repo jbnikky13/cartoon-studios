@@ -92,6 +92,44 @@ function expressionState(emotion = "", local = 0) {
 const ASSET_BASE = "https://raw.githubusercontent.com/jbnikky13/cartoon-studios/main/char_assets_fullbody/";
 const RIG_ASSET_BASE = "https://raw.githubusercontent.com/jbnikky13/cartoon-studios/main/char_assets/";
 type RigAssets = Partial<Record<"head" | "torso" | "left_arm" | "right_arm" | "left_leg" | "right_leg", HTMLImageElement>>;
+const rigAssetCache = new Map<string, RigAssets>();
+const rigAssetLoads = new Map<string, Promise<RigAssets>>();
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(src));
+    img.src = src;
+  });
+}
+
+async function loadRigAssets(name: string): Promise<RigAssets> {
+  const key = slugifyCharacter(name);
+  const cached = rigAssetCache.get(key);
+  if (cached) return cached;
+  const pending = rigAssetLoads.get(key);
+  if (pending) return pending;
+  const promise = Promise.all(
+    ["head", "torso", "left_arm", "right_arm", "left_leg", "right_leg"].map(async (part) => {
+      try {
+        return [part, await loadImage(`${RIG_ASSET_BASE}${key}/${part}.png`)] as const;
+      } catch {
+        return [part, undefined] as const;
+      }
+    })
+  ).then(entries => {
+    const assets: RigAssets = {};
+    for (const [part, image] of entries) {
+      if (image) assets[part as keyof RigAssets] = image;
+    }
+    rigAssetCache.set(key, assets);
+    return assets;
+  });
+  rigAssetLoads.set(key, promise);
+  return promise;
+}
 
 const assetCache = new Map<string, HTMLImageElement>();
 const rigAssets = new Map<string, RigAssets>();
