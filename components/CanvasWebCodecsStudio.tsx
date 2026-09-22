@@ -91,6 +91,8 @@ function expressionState(emotion = "", local = 0) {
 
 const ASSET_BASE = "https://raw.githubusercontent.com/jbnikky13/cartoon-studios/main/char_assets_fullbody/";
 const RIG_ASSET_BASE = "https://raw.githubusercontent.com/jbnikky13/cartoon-studios/main/char_assets/";
+type RigAssets = Partial<Record<"head" | "torso" | "left_arm" | "right_arm" | "left_leg" | "right_leg", HTMLImageElement>>;
+
 const assetCache = new Map<string, HTMLImageElement>();
 const rigAssets = new Map<string, RigAssets>();
 const assetLoads = new Map<string, Promise<HTMLImageElement>>();
