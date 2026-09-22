@@ -141,7 +141,7 @@ export async function POST(req:Request) {
     if(!topic) return NextResponse.json({error:"A topic is required."},{status:400});
 
     const rawUrls=Array.isArray((body as {urls?:unknown})?.urls)
-      ? ((body as {urls?:unknown[]}).urls||[]).map(String).filter((u:string)=>/^https?:\\/\\//i.test(u))
+      ? ((body as {urls?:unknown[]}).urls||[]).map(String).filter((u:string)=>/^https?:\/\//i.test(u))
       : [];
     const candidates=[...rawUrls,...await searchDuckDuckGo(topic),...await searchWikipedia(topic)];
     const sources:Source[]=[];
