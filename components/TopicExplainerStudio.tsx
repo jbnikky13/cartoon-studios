@@ -13,6 +13,8 @@ export default function TopicExplainerStudio(){
   const [ttsLoading,setTtsLoading]=useState(false);
   const [error,setError]=useState("");
   const [provider,setProvider]=useState("");
+  const [images,setImages]=useState<{sceneIndex:number;image:string|null;status:string}[]>([]);
+  const [imageLoading,setImageLoading]=useState(false);
 
   async function research(){
     if(!topic.trim()) return;
@@ -39,6 +41,18 @@ export default function TopicExplainerStudio(){
     finally{setTtsLoading(false);}
   }
 
+  async function generateImages(){
+    if(!beats.length)return;
+    setError("");setImageLoading(true);
+    try{
+      const r=await fetch("/api/explainer/images",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({topic,scenes:beats.map((b,i)=>({index:i,narration:b.narration,imagePrompt:b.imagePrompt})),characterBible:{style:"gold-linework watercolor editorial illustration, muted palette, cinematic 2D composition",characters:[],continuityRules:["Topic-specific characters only","Preserve recurring faces, outfits and proportions"]}})});
+      const j=await r.json();
+      if(!r.ok)throw new Error(j.error||"Image generation failed.");
+      setImages(j.scenes||[]);setProvider(j.provider||"");
+    }catch(e){setError(e instanceof Error?e.message:"Image generation failed.");}
+    finally{setImageLoading(false);}
+  }
+
   return <section className="card" style={{marginTop:22}}>
     <div className="eyebrow">Topic Explainer · Research → Script → Narration</div>
     <h2>Turn a topic into a researched explainer</h2>
@@ -55,8 +69,8 @@ export default function TopicExplainerStudio(){
       </div>
     </div>
     {beats.length>0&&<div style={{marginTop:20}}>
-      <div className="scenehead"><h3 style={{margin:0}}>Narration beats</h3><button className="secondary" onClick={generateNarration} disabled={ttsLoading}>{ttsLoading?"Generating…":"🎙️ Generate narration timing"}</button></div>
-      {beats.map((b,i)=><div className="scene" key={i}><div className="scenehead"><b>Scene {i+1}</b>{timings[i]&&<span className="muted">{timings[i].start}s–{timings[i].end}s</span>}</div><p>{b.narration}</p><div className="muted">Visual: {b.imagePrompt}</div></div>)}
+      <div className="scenehead"><h3 style={{margin:0}}>Narration beats</h3><button className="secondary" onClick={generateNarration} disabled={ttsLoading}>{ttsLoading?"Generating…":"🎙️ Generate narration timing"}</button><button className="secondary" onClick={generateImages} disabled={imageLoading}>{imageLoading?"Generating images…":"🎨 Generate scene images"}</button></div>
+      {beats.map((b,i)=><div className="scene" key={i}><div className="scenehead"><b>Scene {i+1}</b>{timings[i]&&<span className="muted">{timings[i].start}s–{timings[i].end}s</span>}</div><p>{b.narration}</p><div className="muted">Visual: {b.imagePrompt}</div>{images[i]?.status==="generated"&&images[i].image&&<img src={images[i].image} alt={`Scene ${i+1}`} style={{width:"100%",marginTop:12,borderRadius:12}}/>}</div>)}
       {error&&<p className="error">{error}</p>}
     </div>}
     {error&&!beats.length&&<p className="error">{error}</p>}
