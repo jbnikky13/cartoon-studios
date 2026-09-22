@@ -36,14 +36,14 @@ jobs:
           import realityblend_engine
           import evidence_board_renderer
           import classic_cartoon_ui
-          import explainer_studio_ui
           import realityblend_ui
           import evidence_board_ui
           import video_story_extractor
           import video_visual_analysis
           import video_url_adapter
           import video_evidence_ui
-          print("All Cartoon Studio modules imported successfully.")
+          import song_story_engine
+          print("All Cartoon Studio Python modules imported successfully.")
           PY
 
       - name: Verify character assets
