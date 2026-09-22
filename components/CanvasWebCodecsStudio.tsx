@@ -471,7 +471,7 @@ function actionOverrideKey(scene: Scene, character: string) {
   return `${scene.number}::${character}`;
 }
 
-function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mouthOpen = 0, usePuppetRig = true, actionOverrides: ActionOverrides = {}, compiledClips: CompiledClip[] = []) {
+function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mouthOpen = 0, usePuppetRig = true, actionOverrides: ActionOverrides = {}, compiledClips: CompiledClip[] = [], characterTransforms: Record<string, CharacterTransform> = {}) {
   // Character transforms are applied by the scene renderer through transformOverrides.
 
   const ctx = canvas.getContext("2d");
@@ -528,7 +528,14 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mou
     const compiled = scene ? compiledClipFor(compiledClips, scene, name) : null;
     const action = (scene ? actionOverrides[actionOverrideKey(scene, name)] : undefined) ?? compiled?.action ?? actionData?.action ?? "idle";
     const emotion = actionData?.emotion || scene?.emotion || "";
-    drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)), emotion, mouthOpen, usePuppetRig);
+    const transform = characterTransforms[name] ?? defaultCharacterTransform();
+    ctx.save();
+    ctx.translate(transform.x, transform.y);
+    ctx.translate(positions[i], 455);
+    ctx.rotate((transform.rotation * Math.PI) / 180);
+    ctx.scale(transform.flipX ? -transform.scale : transform.scale, transform.scale);
+    drawCharacter(ctx, 0, 0, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)), emotion, mouthOpen, usePuppetRig);
+    ctx.restore();
   });
 
   ctx.restore();
@@ -709,8 +716,8 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas) drawFrame(canvas, story, time, lipSync ? mouthLevelAt(voiceLevels, time, duration) : 0, puppetRig, actionOverrides, compiledClips);
-  }, [story, time, assetsReady, lipSync, voiceLevels, duration, puppetRig, actionOverrides, compiledClips]);
+    if (canvas) drawFrame(canvas, story, time, lipSync ? mouthLevelAt(voiceLevels, time, duration) : 0, puppetRig, actionOverrides, compiledClips, characterTransforms);
+  }, [story, time, assetsReady, lipSync, voiceLevels, duration, puppetRig, actionOverrides, compiledClips, characterTransforms]);
 
   useEffect(() => () => {
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
@@ -828,7 +835,7 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
       const frames = Math.ceil(duration * FPS);
       for (let i = 0; i < frames; i++) {
         const timestamp = i / FPS;
-        drawFrame(canvas, story, timestamp, lipSync ? mouthLevelAt(voiceLevels, timestamp, duration) : 0, puppetRig, actionOverrides, compiledClips);
+        drawFrame(canvas, story, timestamp, lipSync ? mouthLevelAt(voiceLevels, timestamp, duration) : 0, puppetRig, actionOverrides, compiledClips, characterTransforms);
         await videoSource.add(timestamp, 1 / FPS);
 
         if (i % 15 === 0) {
