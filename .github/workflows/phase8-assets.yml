@@ -1,0 +1,103 @@
+name: Phase 8 Asset Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "char_assets_fullbody/**"
+      - "char_assets/**"
+      - "asset_preparer.py"
+      - "asset_rig_manifest.json"
+      - ".github/workflows/phase8-assets.yml"
+  pull_request:
+    paths:
+      - "char_assets_fullbody/**"
+      - "char_assets/**"
+      - "asset_preparer.py"
+      - "asset_rig_manifest.json"
+  workflow_dispatch:
+
+jobs:
+  validate-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install image tooling
+        run: python -m pip install --disable-pip-version-check pillow
+      - name: Validate and prepare character layers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import json, sys
+
+          root = Path("char_assets_fullbody")
+          out = Path("char_assets")
+          manifest = json.loads(Path("asset_rig_manifest.json").read_text())
+          required = list(manifest["regions"])
+          sources = sorted(root.glob("*/full_body.png"))
+
+          if not sources:
+              print("No full-body character assets found.", file=sys.stderr)
+              raise SystemExit(1)
+
+          failures = []
+          generated = 0
+
+          for source in sources:
+              character = source.parent.name
+              try:
+                  image = Image.open(source).convert("RGBA")
+                  if image.width < 64 or image.height < 64:
+                      raise ValueError(f"source too small: {image.size}")
+                  target = out / character
+                  target.mkdir(parents=True, exist_ok=True)
+                  w, h = image.size
+                  for part, coords in manifest["regions"].items():
+                      x1,y1,x2,y2 = coords
+                      crop = image.crop((round(x1*w),round(y1*h),round(x2*w),round(y2*h)))
+                      alpha = crop.getchannel("A")
+                      bbox = alpha.getbbox()
+                      if bbox: crop = crop.crop(bbox)
+                      if crop.width == 0 or crop.height == 0:
+                          raise ValueError(f"{part} produced an empty image")
+                      crop.save(target / f"{part}.png", optimize=True)
+                      generated += 1
+              except Exception as exc:
+                  failures.append(f"{character}: {exc}")
+
+          if failures:
+              print("\n".join(failures), file=sys.stderr)
+              raise SystemExit(1)
+
+          missing = []
+          for source in sources:
+              for part in required:
+                  if not (out/source.parent.name/f"{part}.png").exists():
+                      missing.append(f"{source.parent.name}/{part}.png")
+
+          if missing:
+              print("Missing generated assets:\n" + "\n".join(missing), file=sys.stderr)
+              raise SystemExit(1)
+
+          print(f"Validated {len(sources)} characters and generated {generated} transparent rig layers.")
+          PY
+      - name: Verify asset dimensions and alpha
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          bad=[]
+          for p in Path("char_assets").glob("*/*.png"):
+              im=Image.open(p)
+              if im.mode != "RGBA" or im.width < 2 or im.height < 2:
+                  bad.append(f"{p}: mode={im.mode}, size={im.size}")
+          if bad:
+              print("\n".join(bad))
+              raise SystemExit(1)
+          print("All generated rig layers are valid RGBA images.")
+          PY
