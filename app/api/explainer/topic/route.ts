@@ -109,7 +109,8 @@ async function synthesizeWithGemini(topic:string,sources:Source[],count:number) 
   const key=process.env.GEMINI_API_KEY;
   if(!key) return null;
   const sourceText=sources.map(s=>`SOURCE ${s.domain}: ${s.text.slice(0,5000)}`).join("\n\n");
-  const bible=buildCharacterBible(topic, []);\n  const prompt=`Create a factual ${count}-beat short explainer about "${topic}" using ONLY the supplied sources. Return JSON only as an array. Each item must have "narration" (one punchy sentence, max 22 words) and "imagePrompt" (one visual prompt). You may introduce original recurring characters when useful, but they must remain identical across scenes. ${characterPrompt(bible)} Do not use or reference any existing Cartoon Studios character assets. Do not invent facts.\\n\\n${sourceText}`;
+  const bible=buildCharacterBible(topic, []);
+  const prompt=`Create a factual ${count}-beat short explainer about "${topic}" using ONLY the supplied sources. Return JSON only as an array. Each item must have "narration" (one punchy sentence, max 22 words) and "imagePrompt" (one visual prompt). You may introduce original recurring characters when useful, but they must remain identical across scenes. ${characterPrompt(bible)} Do not use or reference any existing Cartoon Studios character assets. Do not invent facts.\n\n${sourceText}`;
   const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,{
     method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:0.3}})
   });
@@ -151,7 +152,8 @@ export async function POST(req:Request) {
       script:beats.map((b:{narration:string})=>b.narration),
       sources:sources.map(({url,title,domain})=>({url,title,domain})),
       provider,
-      llmUsed:Boolean(process.env.GEMINI_API_KEY),\n      characterAssets:"topic-specific-originals-only",
+      llmUsed:Boolean(process.env.GEMINI_API_KEY),
+      characterAssets:"topic-specific-originals-only",
     });
   } catch(error) {
     return NextResponse.json({error:error instanceof Error?error.message:"Topic research failed."},{status:500});
