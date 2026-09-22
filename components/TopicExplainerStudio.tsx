@@ -57,11 +57,11 @@ export default function TopicExplainerStudio(){
     try{
       const tts=await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm"});
       const chunks:Float32Array[]=[];let sampleRate=24000;
-      const nextVoice=(i:number)=>voiceMode==="female"?femaleVoice:voiceMode==="male"?maleVoice:(i%2===0?femaleVoice:maleVoice);
+      const nextVoice=(i:number)=>voiceMode==="female"?"af_heart" as const:voiceMode==="male"?"am_michael" as const:(i%2===0?"af_heart":"am_michael") as const;
       for(let i=0;i<beats.length;i++){
         const audio=await tts.generate(beats[i].narration,{voice:nextVoice(i)});
         sampleRate=audio.sampling_rate;
-        chunks.push(audio.data);
+        chunks.push(audio.audio as Float32Array);
         if(i<beats.length-1)chunks.push(new Float32Array(Math.round(sampleRate*0.08)));
         setTtsProgress(Math.round(((i+1)/beats.length)*100));
       }
