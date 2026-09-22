@@ -363,6 +363,54 @@ function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, colo
   ctx.restore();
 }
 
+type CompiledClip = {
+  scene: number;
+  character: string;
+  action: string;
+  emotion: string;
+  gesture: string;
+  start: number;
+  end: number;
+  label: string;
+};
+
+function normalizeAction(value = "") {
+  const a = value.toLowerCase();
+  if (a.includes("run")) return "run";
+  if (a.includes("walk") || a.includes("move") || a.includes("enter") || a.includes("exit")) return "walk";
+  if (a.includes("dance")) return "dance";
+  if (a.includes("jump")) return "jump";
+  if (a.includes("wave")) return "wave";
+  if (a.includes("sit")) return "sit";
+  if (a.includes("talk") || a.includes("speak") || a.includes("say")) return "talk";
+  return "idle";
+}
+
+function compileStory(story: ExportStory): CompiledClip[] {
+  const clips: CompiledClip[] = [];
+  for (const scene of story.scenes ?? []) {
+    for (const item of scene.actions ?? []) {
+      const action = normalizeAction(item.action);
+      const gesture = (item.gesture || "").trim();
+      clips.push({
+        scene: scene.number,
+        character: item.character,
+        action,
+        emotion: item.emotion || scene.emotion || "neutral",
+        gesture,
+        start: scene.start,
+        end: scene.end,
+        label: gesture ? `${action} + ${gesture}` : action,
+      });
+    }
+  }
+  return clips;
+}
+
+function compiledClipFor(clips: CompiledClip[], scene: Scene, character: string) {
+  return clips.find((clip) => clip.scene === scene.number && clip.character === character) ?? null;
+}
+
 type ActionOverrides = Record<string, string>;
 
 function actionOverrideKey(scene: Scene, character: string) {
@@ -420,7 +468,8 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mou
 
   cast.slice(0, 5).forEach((name, i) => {
     const actionData = actions.find((a) => a.character === name);
-    const action = actionOverrides[actionOverrideKey(scene!, name)] ?? actionData?.action ?? "idle";
+    const compiled = compiledClipFor(compiledClips, scene!, name);
+    const action = actionOverrides[actionOverrideKey(scene!, name)] ?? compiled?.action ?? actionData?.action ?? "idle";
     const emotion = actionData?.emotion || scene?.emotion || "";
     drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)), emotion, mouthOpen, usePuppetRig);
   });
@@ -548,6 +597,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   const [voiceLevels, setVoiceLevels] = useState<Float32Array | null>(null);
   const [puppetRig, setPuppetRig] = useState(true);
   const [actionOverrides, setActionOverrides] = useState<ActionOverrides>({});
+  const compiledClips = useMemo(() => compileStory(story), [story]);
   const [selectedSceneNumber, setSelectedSceneNumber] = useState<number | null>(null);
 
   const duration = useMemo(() => durationOf(story), [story]);
@@ -767,6 +817,29 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
       </div>
 
 
+
+
+      <div className="compiler-panel">
+        <div className="timeline-head">
+          <div>
+            <div className="eyebrow">Phase 10 · AI Scene Compiler</div>
+            <strong>Storyboard → animation directives</strong>
+            <p className="muted">The compiler converts each scene action, emotion and gesture into normalized animation clips before the renderer runs.</p>
+          </div>
+          <span className="compiler-count">{compiledClips.length} clips</span>
+        </div>
+        <div className="compiler-list">
+          {compiledClips.slice(0, 12).map((clip, index) => (
+            <div className="compiler-row" key={`${clip.scene}-${clip.character}-${index}`}>
+              <span className="compiler-scene">S{clip.scene}</span>
+              <strong>{clip.character}</strong>
+              <span>{clip.label}</span>
+              <span className="compiler-emotion">{clip.emotion}</span>
+            </div>
+          ))}
+          {compiledClips.length > 12 && <div className="muted">+ {compiledClips.length - 12} more compiled clips</div>}
+        </div>
+      </div>
 
       <div className="timeline-panel">
         <div className="timeline-head">
