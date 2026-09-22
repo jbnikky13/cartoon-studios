@@ -33,25 +33,22 @@ function meta(html:string,key:string) {
 }
 
 async function searchDuckDuckGo(topic:string) {
-  const response = await fetch("https://duckduckgo.com/html/?q="+encodeURIComponent(topic), {
-    headers: { "user-agent":"Mozilla/5.0 (CartoonStudioTopicStory/1.0)" },
-    signal: AbortSignal.timeout(12000),
-  });
-  if (!response.ok) throw new Error("Topic search failed.");
-  const html = await response.text();
-  const urls:string[] = [];
-  const re = /<a[^>]+class=["']result__a["'][^>]+href=["']([^"']+)["'][^>]*>/gi;
-  let match:RegExpExecArray|null;
-  while ((match=re.exec(html)) && urls.length<8) {
-    let href=match[1];
-    try {
-      const u=new URL(href,"https://duckduckgo.com");
-      const redirected=u.searchParams.get("uddg");
-      href=redirected ? decodeURIComponent(redirected) : href;
-    } catch {}
-    if (href.startsWith("http") && !urls.includes(href)) urls.push(href);
+  const endpoints=[
+    "https://html.duckduckgo.com/html/?q="+encodeURIComponent(topic),
+    "https://lite.duckduckgo.com/lite/?q="+encodeURIComponent(topic),
+    "https://duckduckgo.com/html/?q="+encodeURIComponent(topic),
+  ];
+  for(const endpoint of endpoints){
+    try{
+      const response=await fetch(endpoint,{headers:{"user-agent":"Mozilla/5.0 (compatible; CartoonStudioTopicStory/1.0)","accept":"text/html,application/xhtml+xml"},signal:AbortSignal.timeout(9000)});
+      if(!response.ok)continue;
+      const html=await response.text(),urls:string[]=[];
+      const patterns=[/<a[^>]+class=["']result__a["'][^>]+href=["']([^"']+)["'][^>]*>/gi,/<a[^>]+href=["']([^"']+)["'][^>]*class=["']result-link["'][^>]*>/gi];
+      for(const re of patterns){let m:RegExpExecArray|null;while((m=re.exec(html))&&urls.length<8){let href=m[1];try{const u=new URL(href,"https://duckduckgo.com");const redirected=u.searchParams.get("uddg");href=redirected?decodeURIComponent(redirected):href;}catch{}if(href.startsWith("http")&&!urls.includes(href))urls.push(href);}}
+      if(urls.length)return urls;
+    }catch{}
   }
-  return urls;
+  return [];
 }
 
 async function fetchSource(url:string):Promise<Source|null> {
@@ -131,7 +128,7 @@ export async function POST(req:Request) {
     const topic=typeof body==="object"&&body!==null&&"topic" in body ? String((body as {topic?:unknown}).topic||"").trim() : "";
     if(!topic) return NextResponse.json({error:"A topic is required."},{status:400});
 
-    const candidates=await searchDuckDuckGo(topic);
+    const candidates=await searchDuckDuckGo(topic);\n    if(!candidates.length) return NextResponse.json({error:"Search provider returned no results. You can retry or configure SERPAPI_KEY/BING_SEARCH_KEY for a more reliable provider."},{status:502});
     const sources:Source[]=[];
     const seen=new Set<string>();
     for(const url of candidates) {
