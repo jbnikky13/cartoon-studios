@@ -31,6 +31,23 @@ async function generateWithGemini(prompt:string,reference?:string){
   return null;
 }
 
+
+async function searchWikimedia(query:string):Promise<string[]>{
+  try{
+    const r=await fetch("https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(query)+"&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url|mime&iiurlwidth=1280&format=json",{headers:{"user-agent":"CartoonStudios/1.0"},signal:AbortSignal.timeout(10000)});
+    if(!r.ok)return [];
+    const d=await r.json();
+    return Object.values(d?.query?.pages||{}).map((p:any)=>p?.imageinfo?.[0]?.thumburl||p?.imageinfo?.[0]?.url||"").filter((u:string)=>/^https?:\\/\\//.test(u));
+  }catch{return [];}
+}
+async function fetchAsDataUrl(url:string){
+  try{
+    const r=await fetch(url,{headers:{"user-agent":"CartoonStudios/1.0"},signal:AbortSignal.timeout(12000)});
+    if(!r.ok)return null; const type=r.headers.get("content-type")||"image/jpeg"; if(!type.startsWith("image/"))return null;
+    return "data:"+type.split(";")[0]+";base64,"+Buffer.from(await r.arrayBuffer()).toString("base64");
+  }catch{return null;}
+}
+
 function placeholder(scene:Scene,reference?:string){
   return {sceneIndex:scene.index,narration:scene.narration||"",imagePrompt:scene.imagePrompt,referenceUsed:Boolean(reference),image:null,status:"awaiting-image-provider"};
 }
@@ -50,7 +67,7 @@ export async function POST(req:Request){
       const image=await generateWithGemini(prompt,reference);
       results.push(image?{...scene,image,referenceUsed:Boolean(reference),status:"generated"}:placeholder(scene,reference));
     }
-    return NextResponse.json({topic,style:STYLE,characterAssets:"topic-specific-only",referenceUsed:Boolean(reference),provider:process.env.GEMINI_API_KEY?"gemini-image":"placeholder",scenes:results});
+    return NextResponse.json({topic,style:STYLE,characterAssets:"topic-specific-only",referenceUsed:Boolean(reference),provider:process.env.GEMINI_API_KEY?"gemini-image-with-wikimedia-fallback":"wikimedia-commons-fallback",scenes:results});
   }catch(error){
     return NextResponse.json({error:error instanceof Error?error.message:"Image generation failed."},{status:500});
   }
