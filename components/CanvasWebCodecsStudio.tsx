@@ -911,16 +911,16 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
         </div>
         <div className="character-editor">
           {(story.characters ?? []).map((character) => {
-            const characterName = typeof character === "string" ? character : character.role;
+            const characterName = character.role;
             const value = characterTransforms[characterName] ?? defaultCharacterTransform();
             return (
               <div className="character-editor-row" key={characterName}>
                 <button className={selectedCharacter === characterName ? "character-select selected" : "character-select"} onClick={() => setSelectedCharacter(characterName)} disabled={exporting}>{characterName}</button>
                 <label> X <input type="range" min="-300" max="300" step="1" value={value.x} onChange={(e) => updateCharacterTransform(characterName,{x:Number(e.target.value)})}/></label>
-                <label> Y <input type="range" min="-250" max="250" step="1" value={value.y} onChange={(e) => updateCharacterTransform(character,{y:Number(e.target.value)})}/></label>
-                <label> Scale <input type="range" min=".5" max="2" step=".01" value={value.scale} onChange={(e) => updateCharacterTransform(character,{scale:Number(e.target.value)})}/></label>
-                <label> Rotate <input type="range" min="-180" max="180" step="1" value={value.rotation} onChange={(e) => updateCharacterTransform(character,{rotation:Number(e.target.value)})}/></label>
-                <button className="secondary" onClick={() => updateCharacterTransform(character,{flipX:!value.flipX})} disabled={exporting}>{value.flipX ? "Facing left" : "Facing right"}</button>
+                <label> Y <input type="range" min="-250" max="250" step="1" value={value.y} onChange={(e) => updateCharacterTransform(characterName,{y:Number(e.target.value)})}/></label>
+                <label> Scale <input type="range" min=".5" max="2" step=".01" value={value.scale} onChange={(e) => updateCharacterTransform(characterName,{scale:Number(e.target.value)})}/></label>
+                <label> Rotate <input type="range" min="-180" max="180" step="1" value={value.rotation} onChange={(e) => updateCharacterTransform(characterName,{rotation:Number(e.target.value)})}/></label>
+                <button className="secondary" onClick={() => updateCharacterTransform(characterName,{flipX:!value.flipX})} disabled={exporting}>{value.flipX ? "Facing left" : "Facing right"}</button>
               </div>
             );
           })}
