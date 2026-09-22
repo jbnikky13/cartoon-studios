@@ -1,7 +1,6 @@
 "use client";
 
 import {useState} from "react";
-import {KokoroTTS} from "kokoro-js";
 import ExplainerMp4Exporter from "./ExplainerMp4Exporter";
 type Beat={narration:string;imagePrompt:string};
 type Timing={index:number;narration:string;start:number;end:number;duration:number};
@@ -56,6 +55,7 @@ export default function TopicExplainerStudio(){
     if(!beats.length)return;
     setError("");setTtsLoading(true);setTtsProgress(0);
     try{
+      const {KokoroTTS}=await import("kokoro-js");
       const tts=await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm"});
       const chunks:Float32Array[]=[];let sampleRate=24000;
       const nextVoice=(i:number):KokoroVoice=>voiceMode==="female"?femaleVoice:voiceMode==="male"?maleVoice:(i%2===0?femaleVoice:maleVoice);
