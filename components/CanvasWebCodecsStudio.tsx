@@ -79,7 +79,37 @@ function characterMotion(action: string, local: number) {
   return { x: 0, y: bounce };
 }
 
-function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, action: string, local: number, label: string) {
+const ASSET_BASE = "https://raw.githubusercontent.com/jbnikky13/cartoon-studios/main/char_assets_fullbody/";
+const assetCache = new Map<string, HTMLImageElement>();
+const assetLoads = new Map<string, Promise<HTMLImageElement>>();
+
+function slugifyCharacter(name: string) {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function characterAssetUrl(name: string) {
+  const slug = slugifyCharacter(name);
+  return `${ASSET_BASE}${slug}/full_body.png`;
+}
+
+function loadCharacterAsset(name: string) {
+  const key = slugifyCharacter(name);
+  const cached = assetCache.get(key);
+  if (cached) return Promise.resolve(cached);
+  const existing = assetLoads.get(key);
+  if (existing) return existing;
+  const promise = new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => { assetCache.set(key, img); resolve(img); };
+    img.onerror = () => reject(new Error(`Character asset not found: ${name}`));
+    img.src = characterAssetUrl(name);
+  });
+  assetLoads.set(key, promise);
+  return promise;
+}
+
+function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, action: string, local: number, label: string, image?: HTMLImageElement) {
   const motion = characterMotion(action, local);
   ctx.save();
   ctx.translate(x + motion.x, y + motion.y);
@@ -89,43 +119,48 @@ function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, colo
   ctx.ellipse(0, 155 - motion.y, 82, 18, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = color;
-  ctx.fillRect(-62, -48, 124, 145);
-  ctx.beginPath();
-  ctx.arc(0, -112, 62, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#17131f";
-  ctx.beginPath();
-  ctx.arc(-22, -118, 8, 0, Math.PI * 2);
-  ctx.arc(22, -118, 8, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = "#f7f7ff";
-  ctx.lineWidth = 7;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.arc(0, -103, 27, 0.15, Math.PI - 0.15);
-  ctx.stroke();
-
-  const arm = Math.sin(local * 4) * 25;
-  ctx.strokeStyle = "#ffc4d7";
-  ctx.lineWidth = 20;
-  ctx.beginPath();
-  ctx.moveTo(-58, -22);
-  ctx.lineTo(-108, 38 + arm);
-  ctx.moveTo(58, -22);
-  ctx.lineTo(108, 38 - arm);
-  ctx.stroke();
-
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 24;
-  ctx.beginPath();
-  ctx.moveTo(-30, 97);
-  ctx.lineTo(-45, 160);
-  ctx.moveTo(30, 97);
-  ctx.lineTo(45, 160);
-  ctx.stroke();
+  if (image) {
+    const maxW = 210;
+    const maxH = 360;
+    const ratio = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight);
+    const dw = image.naturalWidth * ratio;
+    const dh = image.naturalHeight * ratio;
+    ctx.drawImage(image, -dw / 2, -dh + 20, dw, dh);
+  } else {
+    ctx.fillStyle = color;
+    ctx.fillRect(-62, -48, 124, 145);
+    ctx.beginPath();
+    ctx.arc(0, -112, 62, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#17131f";
+    ctx.beginPath();
+    ctx.arc(-22, -118, 8, 0, Math.PI * 2);
+    ctx.arc(22, -118, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#f7f7ff";
+    ctx.lineWidth = 7;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(0, -103, 27, 0.15, Math.PI - 0.15);
+    ctx.stroke();
+    const arm = Math.sin(local * 4) * 25;
+    ctx.strokeStyle = "#ffc4d7";
+    ctx.lineWidth = 20;
+    ctx.beginPath();
+    ctx.moveTo(-58, -22);
+    ctx.lineTo(-108, 38 + arm);
+    ctx.moveTo(58, -22);
+    ctx.lineTo(108, 38 - arm);
+    ctx.stroke();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 24;
+    ctx.beginPath();
+    ctx.moveTo(-30, 97);
+    ctx.lineTo(-45, 160);
+    ctx.moveTo(30, 97);
+    ctx.lineTo(45, 160);
+    ctx.stroke();
+  }
 
   ctx.fillStyle = "#fff";
   ctx.font = "700 15px Inter, system-ui, sans-serif";
@@ -185,7 +220,7 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number) {
 
   cast.slice(0, 5).forEach((name, i) => {
     const action = actions.find((a) => a.character === name)?.action ?? "idle";
-    drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name);
+    drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)));
   });
 
   ctx.restore();
@@ -310,10 +345,34 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
     return () => cancelAnimationFrame(raf);
   }, [playing, duration]);
 
+  const characterNames = useMemo(() => {
+    const scenes = story.scenes ?? [];
+    const actionNames = scenes.flatMap((s) => (s.actions ?? []).map((a) => a.character));
+    const castNames = (story.characters ?? []).map((c) => c.role);
+    return Array.from(new Set([...actionNames, ...castNames].filter(Boolean))).slice(0, 5);
+  }, [story]);
+
+  const [assetsReady, setAssetsReady] = useState(false);
+  const [assetStatus, setAssetStatus] = useState("Loading character assets…");
+
+  useEffect(() => {
+    let cancelled = false;
+    setAssetsReady(false);
+    setAssetStatus(characterNames.length ? "Loading character assets…" : "Using fallback character.");
+    Promise.allSettled(characterNames.map((name) => loadCharacterAsset(name)))
+      .then((results) => {
+        if (cancelled) return;
+        const loaded = results.filter((r) => r.status === "fulfilled").length;
+        setAssetsReady(true);
+        setAssetStatus(characterNames.length ? `${loaded}/${characterNames.length} character assets ready.` : "Using fallback character.");
+      });
+    return () => { cancelled = true; };
+  }, [characterNames]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) drawFrame(canvas, story, time);
-  }, [story, time]);
+  }, [story, time, assetsReady]);
 
   useEffect(() => () => {
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
@@ -444,6 +503,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
         </div>
       </div>
 
+      <div className="asset-status muted">{assetStatus}</div>
       <div className="canvas-wrap">
         <canvas ref={canvasRef} width={W} height={H} />
       </div>
