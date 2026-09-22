@@ -72,11 +72,21 @@ function cameraOffset(camera = "", local: number) {
 function characterMotion(action: string, local: number) {
   const a = action.toLowerCase();
   const bounce = Math.sin(local * 5) * 7;
-  if (a.includes("walk") || a.includes("run") || a.includes("move")) return { x: Math.sin(local * 1.8) * 150, y: bounce };
-  if (a.includes("jump")) return { x: 0, y: -Math.abs(Math.sin(local * 3)) * 80 };
-  if (a.includes("dance")) return { x: Math.sin(local * 5) * 35, y: Math.sin(local * 10) * 16 };
-  if (a.includes("sit")) return { x: 0, y: 38 };
-  return { x: 0, y: bounce };
+  if (a.includes("walk") || a.includes("run") || a.includes("move")) return { x: Math.sin(local * 1.8) * 150, y: bounce, rotation: Math.sin(local * 3.6) * 0.035, scale: 1 };
+  if (a.includes("jump")) return { x: 0, y: -Math.abs(Math.sin(local * 3)) * 80, rotation: 0, scale: 1.04 };
+  if (a.includes("dance")) return { x: Math.sin(local * 5) * 35, y: Math.sin(local * 10) * 16, rotation: Math.sin(local * 5) * 0.08, scale: 1.03 };
+  if (a.includes("sit")) return { x: 0, y: 38, rotation: -0.03, scale: 0.98 };
+  return { x: 0, y: bounce, rotation: Math.sin(local * 2) * 0.015, scale: 1 };
+}
+
+function expressionState(emotion = "", local = 0) {
+  const e = emotion.toLowerCase();
+  const blink = Math.sin(local * 1.7) > 0.985;
+  if (e.includes("surpris") || e.includes("shock")) return { eyeScale: 1.35, brow: -0.16, mouth: "open", blink: false };
+  if (e.includes("sad") || e.includes("cry")) return { eyeScale: 0.9, brow: 0.12, mouth: "sad", blink };
+  if (e.includes("angry") || e.includes("rage")) return { eyeScale: 0.92, brow: 0.22, mouth: "angry", blink };
+  if (e.includes("happy") || e.includes("joy") || e.includes("excited")) return { eyeScale: 1.05, brow: -0.04, mouth: "smile", blink };
+  return { eyeScale: 1, brow: 0, mouth: "neutral", blink };
 }
 
 const ASSET_BASE = "https://raw.githubusercontent.com/jbnikky13/cartoon-studios/main/char_assets_fullbody/";
@@ -109,10 +119,13 @@ function loadCharacterAsset(name: string) {
   return promise;
 }
 
-function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, action: string, local: number, label: string, image?: HTMLImageElement) {
+function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, action: string, local: number, label: string, image?: HTMLImageElement, emotion = "", mouthOpen = 0) {
   const motion = characterMotion(action, local);
+  const expression = expressionState(emotion, local);
   ctx.save();
   ctx.translate(x + motion.x, y + motion.y);
+  ctx.rotate(motion.rotation);
+  ctx.scale(motion.scale, motion.scale);
 
   ctx.fillStyle = "rgba(0,0,0,.28)";
   ctx.beginPath();
@@ -126,6 +139,50 @@ function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, colo
     const dw = image.naturalWidth * ratio;
     const dh = image.naturalHeight * ratio;
     ctx.drawImage(image, -dw / 2, -dh + 20, dw, dh);
+
+    // Lightweight facial rig overlay. The asset remains intact while expression,
+    // blinking and speech are animated on top of it.
+    const faceY = -dh + 78;
+    ctx.save();
+    ctx.translate(0, faceY);
+    ctx.fillStyle = "#17131f";
+    const eyeY = expression.blink ? 3 : 0;
+    ctx.save();
+    ctx.scale(1, expression.blink ? 0.12 : expression.eyeScale);
+    ctx.beginPath();
+    ctx.arc(-22, eyeY, 5.5, 0, Math.PI * 2);
+    ctx.arc(22, eyeY, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = "#17131f";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-31, -15 + expression.brow * 25);
+    ctx.lineTo(-12, -12 - expression.brow * 15);
+    ctx.moveTo(12, -12 - expression.brow * 15);
+    ctx.lineTo(31, -15 + expression.brow * 25);
+    ctx.stroke();
+
+    const open = Math.max(0, Math.min(1, mouthOpen));
+    ctx.fillStyle = "#301b2c";
+    if (expression.mouth === "sad") {
+      ctx.beginPath();
+      ctx.arc(0, 25, 16, Math.PI + 0.15, Math.PI * 2 - 0.15);
+      ctx.strokeStyle = "#17131f";
+      ctx.stroke();
+    } else if (expression.mouth === "smile") {
+      ctx.beginPath();
+      ctx.arc(0, 19, 18, 0.15, Math.PI - 0.15);
+      ctx.strokeStyle = "#17131f";
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(0, 22, 10 + open * 6, 3 + open * 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   } else {
     ctx.fillStyle = color;
     ctx.fillRect(-62, -48, 124, 145);
@@ -169,7 +226,7 @@ function drawCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, colo
   ctx.restore();
 }
 
-function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number) {
+function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mouthOpen = 0) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
@@ -219,8 +276,10 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number) {
   const positions = cast.slice(0, 5).map((_, i, arr) => W / 2 + (i - (arr.length - 1) / 2) * Math.min(190, 680 / Math.max(1, arr.length)));
 
   cast.slice(0, 5).forEach((name, i) => {
-    const action = actions.find((a) => a.character === name)?.action ?? "idle";
-    drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)));
+    const actionData = actions.find((a) => a.character === name);
+    const action = actionData?.action ?? "idle";
+    const emotion = actionData?.emotion || scene?.emotion || "";
+    drawCharacter(ctx, positions[i], 455, palette[i % palette.length], action, local, name, assetCache.get(slugifyCharacter(name)), emotion, mouthOpen);
   });
 
   ctx.restore();
@@ -267,6 +326,26 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number) {
   ctx.textAlign = "right";
   ctx.fillText(`${t.toFixed(1)}s / ${duration.toFixed(1)}s`, W - 54, 700);
   ctx.textAlign = "left";
+}
+
+function buildVoiceLevels(buffer: AudioBuffer, bucketSize = 1024) {
+  const channel = buffer.getChannelData(0);
+  const buckets = Math.ceil(channel.length / bucketSize);
+  const levels = new Float32Array(buckets);
+  for (let i = 0; i < buckets; i++) {
+    const start = i * bucketSize;
+    const end = Math.min(channel.length, start + bucketSize);
+    let sum = 0;
+    for (let j = start; j < end; j++) sum += channel[j] * channel[j];
+    levels[i] = Math.min(1, Math.sqrt(sum / Math.max(1, end - start)) * 3.2);
+  }
+  return levels;
+}
+
+function mouthLevelAt(levels: Float32Array | null, time: number, duration: number) {
+  if (!levels || !levels.length || time >= duration) return 0;
+  const index = Math.min(levels.length - 1, Math.max(0, Math.floor((time / Math.max(0.001, duration)) * levels.length)));
+  return levels[index] || 0;
 }
 
 async function decodeAudio(file: File) {
@@ -322,6 +401,8 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   const [musicVolume, setMusicVolume] = useState(0.55);
   const [voiceVolume, setVoiceVolume] = useState(1);
   const [audioBusy, setAudioBusy] = useState(false);
+  const [lipSync, setLipSync] = useState(true);
+  const [voiceLevels, setVoiceLevels] = useState<Float32Array | null>(null);
 
   const duration = useMemo(() => durationOf(story), [story]);
   const supported = typeof window !== "undefined" && "VideoEncoder" in window && "VideoFrame" in window;
@@ -371,8 +452,8 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas) drawFrame(canvas, story, time);
-  }, [story, time, assetsReady]);
+    if (canvas) drawFrame(canvas, story, time, lipSync ? mouthLevelAt(voiceLevels, time, duration) : 0);
+  }, [story, time, assetsReady, lipSync, voiceLevels, duration]);
 
   useEffect(() => () => {
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
@@ -389,6 +470,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
       } else {
         setVoice(buffer);
         setVoiceName(file.name);
+        setVoiceLevels(buildVoiceLevels(buffer));
       }
       setStatus(`${kind === "music" ? "Music" : "Voice"} loaded and ready for sync.`);
     } catch (error) {
@@ -460,7 +542,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
       const frames = Math.ceil(duration * FPS);
       for (let i = 0; i < frames; i++) {
         const timestamp = i / FPS;
-        drawFrame(canvas, story, timestamp);
+        drawFrame(canvas, story, timestamp, lipSync ? mouthLevelAt(voiceLevels, timestamp, duration) : 0);
         await videoSource.add(timestamp, 1 / FPS);
 
         if (i % 15 === 0) {
@@ -520,8 +602,20 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
         </button>
       </div>
 
+      <div className="rig-panel">
+        <div>
+          <div className="eyebrow">Phase 5 · Character Rig</div>
+          <strong>Expressions + lip sync</strong>
+          <p className="muted">Emotion drives facial expression and the voice waveform drives mouth movement during preview and export.</p>
+        </div>
+        <label className="toggle-row">
+          <input type="checkbox" checked={lipSync} onChange={(e) => setLipSync(e.target.checked)} disabled={exporting} />
+          <span>Enable lip sync</span>
+        </label>
+      </div>
+
       <div className="audio-panel">
-        <div className="eyebrow">Audio timeline</div>
+        <div className="eyebrow">Audio timeline · lip-sync source</div>
         <div className="audio-grid">
           <label className="audio-slot">
             <span>🎵 Music</span>
