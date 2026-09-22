@@ -33,3 +33,11 @@
 .camera-panel{margin-top:18px;padding:16px;border:1px solid #292c38;border-radius:16px;background:rgba(255,255,255,.025)}
 .camera-presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.camera-chip{padding:7px 10px;border:1px solid #353846;border-radius:999px;font-size:12px;text-transform:capitalize;color:#bfc5d9}
 .camera-panel select{border:1px solid #353846;background:#151722;color:#fff;border-radius:9px;padding:8px 10px}
+
+.character-editor-panel{margin-top:18px;padding:16px;border:1px solid #292c38;border-radius:16px;background:rgba(255,255,255,.025)}
+.character-editor{display:grid;gap:10px;margin-top:14px}
+.character-editor-row{display:grid;grid-template-columns:150px 1fr 1fr 1fr 1fr 120px;gap:10px;align-items:center;padding:10px;border-top:1px solid #252835}
+.character-editor-row label{font-size:11px;color:#9299b0}.character-editor-row input{width:100%}
+.character-select{padding:9px 10px;border:1px solid #353846;border-radius:9px;background:#151722;color:#fff;text-align:left}
+.character-select.selected{border-color:#9b7cff}
+@media(max-width:900px){.character-editor-row{grid-template-columns:1fr 1fr 1fr}.character-editor-row .character-select{grid-column:1/-1}}
