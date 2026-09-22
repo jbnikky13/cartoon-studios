@@ -823,7 +823,7 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
     const canvas = canvasRef.current;
     if (!canvas) return "Preview canvas is not ready.";
     if (!Number.isFinite(duration) || duration <= 0) return "Story duration must be greater than zero.";
-    if (!Number.isFinite(fps) || fps < 1 || fps > 60) return "Frame rate must be between 1 and 60 FPS.";
+    if (!Number.isFinite(FPS) || FPS < 1 || FPS > 60) return "Frame rate must be between 1 and 60 FPS.";
     return null;
   }
 
@@ -831,7 +831,7 @@ function updateCharacterTransform(character: string, patch: Partial<CharacterTra
     setExportError(null);
     const validationError = validateExportSettings();
     if (validationError) { setExportError(validationError); return; }
-    setExportHealth(getExportHealth(story, duration, fps, "video/webm;codecs=vp09", canvasRef.current?.width ?? 900, canvasRef.current?.height ?? 720));
+    setExportHealth(getExportHealth(story, duration, FPS, "video/webm;codecs=vp09", canvasRef.current?.width ?? 900, canvasRef.current?.height ?? 720));
     const canvas = canvasRef.current;
     if (!canvas) return;
 
