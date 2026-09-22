@@ -6,6 +6,7 @@ import ExplainerMp4Exporter from "./ExplainerMp4Exporter";
 type Beat={narration:string;imagePrompt:string};
 type Timing={index:number;narration:string;start:number;end:number;duration:number};
 type Character={id:string;name:string;role:string;appearance:string;outfit:string;palette:string;personality:string};
+type KokoroVoice="af_heart"|"af_bella"|"af_nicole"|"af_sarah"|"am_michael"|"am_liam"|"am_adam"|"am_puck";
 
 export default function TopicExplainerStudio(){
   const [topic,setTopic]=useState("");
@@ -26,8 +27,8 @@ export default function TopicExplainerStudio(){
   const [characterBible,setCharacterBible]=useState<{style:string;characters:Character[];continuityRules:string[]}>({style:"gold-linework watercolor editorial illustration, muted palette, cinematic 2D composition",characters:[],continuityRules:[]});
   const [characterLoading,setCharacterLoading]=useState(false);
   const [voiceMode,setVoiceMode]=useState<"female"|"male"|"mixed">("female");
-  const [femaleVoice,setFemaleVoice]=useState("af_heart");
-  const [maleVoice,setMaleVoice]=useState("am_michael");
+  const [femaleVoice,setFemaleVoice]=useState<KokoroVoice>("af_heart");
+  const [maleVoice,setMaleVoice]=useState<KokoroVoice>("am_michael");
   const [ttsProgress,setTtsProgress]=useState(0);
 
   async function research(){
@@ -57,7 +58,7 @@ export default function TopicExplainerStudio(){
     try{
       const tts=await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm"});
       const chunks:Float32Array[]=[];let sampleRate=24000;
-      const nextVoice=(i:number)=>voiceMode==="female"?"af_heart" as const:voiceMode==="male"?"am_michael" as const:(i%2===0?"af_heart":"am_michael") as const;
+      const nextVoice=(i:number):KokoroVoice=>voiceMode==="female"?femaleVoice:voiceMode==="male"?maleVoice:(i%2===0?femaleVoice:maleVoice);
       for(let i=0;i<beats.length;i++){
         const audio=await tts.generate(beats[i].narration,{voice:nextVoice(i)});
         sampleRate=audio.sampling_rate;
@@ -70,7 +71,7 @@ export default function TopicExplainerStudio(){
       const url=URL.createObjectURL(wavBlob(merged,sampleRate));
       setAudioUrl(url);
       const timings=[];let cursor=0;
-      for(let i=0;i<beats.length;i++){const words=beats[i].narration.trim().split(/\\s+/).length;const duration=Math.max(2.2,words/2.35);timings.push({index:i,narration:beats[i].narration,start:Number(cursor.toFixed(2)),end:Number((cursor+duration).toFixed(2)),duration:Number(duration.toFixed(2))});cursor+=duration;}
+      for(let i=0;i<beats.length;i++){const words=beats[i].narration.trim().split(/\s+/).length;const duration=Math.max(2.2,words/2.35);timings.push({index:i,narration:beats[i].narration,start:Number(cursor.toFixed(2)),end:Number((cursor+duration).toFixed(2)),duration:Number(duration.toFixed(2))});cursor+=duration;}
       setTimings(timings);
       setProvider("Kokoro local · "+voiceMode);
       const cr=await fetch("/api/explainer/captions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({script:beats.map(b=>b.narration),durations:timings.map(x=>x.duration)})});
