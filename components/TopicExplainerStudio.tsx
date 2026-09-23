@@ -56,7 +56,8 @@ export default function TopicExplainerStudio(){
     setError("");setTtsLoading(true);setTtsProgress(0);
     try{
       // Load Kokoro only at browser runtime so Next/webpack never parses its ONNX bundle.
-      const loadKokoro = new Function("return import(\"https://esm.sh/kokoro-js@1.2.0\")") as () => Promise<{KokoroTTS:any}>;\n      const {KokoroTTS}=await loadKokoro();
+      const loadKokoro = new Function("return import(\"https://esm.sh/kokoro-js@1.2.0\")") as () => Promise<{KokoroTTS:any}>;
+      const {KokoroTTS}=await loadKokoro();
       const tts=await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm"});
       const chunks:Float32Array[]=[];let sampleRate=24000;
       const nextVoice=(i:number):KokoroVoice=>voiceMode==="female"?femaleVoice:voiceMode==="male"?maleVoice:(i%2===0?femaleVoice:maleVoice);
