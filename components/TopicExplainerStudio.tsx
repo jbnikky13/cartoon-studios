@@ -52,36 +52,55 @@ export default function TopicExplainerStudio(){
     return new Blob([buffer],{type:"audio/wav"});
   }
   async function generateNarration(){
-    if(!beats.length)return;
+    if(!beats.length||ttsLoading)return;
     setError("");setTtsLoading(true);setTtsProgress(0);
+    let worker:Worker|null=null;
     try{
-      // Load Kokoro only at browser runtime so Next/webpack never parses its ONNX bundle.
-      const loadKokoro = new Function("return import(\"https://esm.sh/kokoro-js@1.2.0\")") as () => Promise<{KokoroTTS:any}>;
-      const {KokoroTTS}=await loadKokoro();
-      const tts=await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm"});
-      const chunks:Float32Array[]=[];let sampleRate=24000;
-      const nextVoice=(i:number):KokoroVoice=>voiceMode==="female"?femaleVoice:voiceMode==="male"?maleVoice:(i%2===0?femaleVoice:maleVoice);
+      // Run Kokoro in a dedicated worker. This keeps WASM/model failures from
+      // taking down the React page and keeps the main thread responsive.
+      if(typeof Worker==="undefined") throw new Error("Your browser does not support narration workers.");
+      worker=new Worker("/kokoro-worker.js",{type:"module"});
+      const selectedVoices=beats.map((b,i)=>({
+        text:b.narration,
+        voice:voiceMode==="female"?femaleVoice:voiceMode==="male"?maleVoice:(i%2===0?femaleVoice:maleVoice)
+      }));
+      const result=await new Promise<{samples:ArrayBuffer;sampleRate:number}>((resolve,reject)=>{
+        if(!worker)return reject(new Error("Narration worker failed to start."));
+        const timeout=window.setTimeout(()=>reject(new Error("Free narration timed out. Try again with fewer or shorter scenes.")),8*60*1000);
+        worker.onmessage=(event)=>{
+          const data=event.data||{};
+          if(data.type==="progress") setTtsProgress(Number(data.value)||0);
+          if(data.type==="done"){window.clearTimeout(timeout);resolve({samples:data.samples,sampleRate:data.sampleRate});}
+          if(data.type==="error"){window.clearTimeout(timeout);reject(new Error(data.error||"Kokoro narration failed."));}
+        };
+        worker.onerror=()=>{window.clearTimeout(timeout);reject(new Error("Free narration worker stopped unexpectedly. Your browser may have run out of memory; try generating a shorter script."));};
+        worker.postMessage({type:"generate",beats:selectedVoices});
+      });
+      const merged=new Float32Array(result.samples);
+      const url=URL.createObjectURL(wavBlob(merged,result.sampleRate));
+      setAudioUrl(previous=>{if(previous)URL.revokeObjectURL(previous);return url;});
+      const newTimings:Timing[]=[];let cursor=0;
       for(let i=0;i<beats.length;i++){
-        const audio=await tts.generate(beats[i].narration,{voice:nextVoice(i)});
-        sampleRate=audio.sampling_rate;
-        chunks.push(audio.audio as Float32Array);
-        if(i<beats.length-1)chunks.push(new Float32Array(Math.round(sampleRate*0.08)));
-        setTtsProgress(Math.round(((i+1)/beats.length)*100));
+        const wordCount=beats[i].narration.trim().split(/\\s+/).filter(Boolean).length;
+        const duration=Math.max(2.2,wordCount/2.35);
+        newTimings.push({index:i,narration:beats[i].narration,start:Number(cursor.toFixed(2)),end:Number((cursor+duration).toFixed(2)),duration:Number(duration.toFixed(2))});
+        cursor+=duration;
       }
-      const merged=new Float32Array(chunks.reduce((n,x)=>n+x.length,0));let offset=0;
-      for(const chunk of chunks){merged.set(chunk,offset);offset+=chunk.length;}
-      const url=URL.createObjectURL(wavBlob(merged,sampleRate));
-      setAudioUrl(url);
-      const timings=[];let cursor=0;
-      for(let i=0;i<beats.length;i++){const words=beats[i].narration.trim().split(/\s+/).length;const duration=Math.max(2.2,words/2.35);timings.push({index:i,narration:beats[i].narration,start:Number(cursor.toFixed(2)),end:Number((cursor+duration).toFixed(2)),duration:Number(duration.toFixed(2))});cursor+=duration;}
-      setTimings(timings);
+      setTimings(newTimings);
       setProvider("Kokoro local · "+voiceMode);
-      const cr=await fetch("/api/explainer/captions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({script:beats.map(b=>b.narration),durations:timings.map(x=>x.duration)})});
-      const cj=await cr.json();if(cr.ok){setWords(cj.words||[]);setCaptions(cj.captions||[]);}
-    }catch(e){setError(e instanceof Error?e.message:"Local Kokoro narration failed.");}
-    finally{setTtsLoading(false);setTtsProgress(0);}
+      try{
+        const cr=await fetch("/api/explainer/captions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({script:beats.map(b=>b.narration),durations:newTimings.map(x=>x.duration)})});
+        const cj=await cr.json();
+        if(cr.ok){setWords(cj.words||[]);setCaptions(cj.captions||[]);}
+      }catch{}
+    }catch(e){
+      setError(e instanceof Error?e.message:"Free narration failed. No page reload is required; try again with a shorter script.");
+    }finally{
+      worker?.terminate();
+      setTtsLoading(false);
+      setTtsProgress(0);
+    }
   }
-
   async function generateImages(){
     if(!beats.length)return;
     setError("");setImageLoading(true);
