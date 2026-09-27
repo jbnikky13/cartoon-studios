@@ -1,6 +1,7 @@
 "use client";
 import {useRef,useState} from "react";
 import {AudioBufferSource,BufferTarget,CanvasSource,Mp4OutputFormat,Output,Quality} from "mediabunny";
+import { inspectWithIntentGuard } from "../lib/intentguardClient";
 
 type Scene={image:string|null;duration:number;narration:string};
 type Word={text:string;start:number;end:number};
@@ -15,8 +16,17 @@ export default function ExplainerMp4Exporter({scenes,words,captions,audioUrl}:{s
   if(!window.isSecureContext)return setStatus("Export requires a secure browser context.");
   const canvas=canvasRef.current||document.createElement("canvas");canvas.width=720;canvas.height=1280;
   const ctx=canvas.getContext("2d");if(!ctx)return setStatus("Canvas is unavailable.");
-  setStatus("Preparing MP4…");setProgress(0);setUrl("");
+  setStatus("Checking IntentGuard…");setProgress(0);setUrl("");
   try{
+   const guard = await inspectWithIntentGuard({
+    operation: "CANVAS_WEB_CODECS_MP4_EXPORT",
+    evidence: { sceneCount: scenes.length, duration: total, hasNarration: Boolean(audioUrl) }
+   });
+   if (guard.decision?.action !== "ALLOW") {
+    setStatus(guard.decision?.action === "REQUIRE_APPROVAL" ? "Export requires approval." : "IntentGuard blocked this export.");
+    return;
+   }
+   setStatus("Preparing MP4…");
    const output=new Output({format:new Mp4OutputFormat({fastStart:"in-memory"}),target:new BufferTarget()});
    const video=new CanvasSource(canvas,{codec:"avc",bitrate:5_000_000});
    output.addVideoTrack(video,{frameRate:30});
@@ -53,7 +63,7 @@ export default function ExplainerMp4Exporter({scenes,words,captions,audioUrl}:{s
   <h3>Finish Topic Explainer</h3>
   <p className="muted">Renders the generated artwork, Ken Burns motion, timed captions and optional generated narration into one MP4 in the browser.</p>
   <canvas ref={canvasRef} width={720} height={1280} style={{display:"none"}}/>
-  <button className="primary" onClick={exportMp4} disabled={status==="Preparing MP4…"||status==="Muxing narration…"}>{status==="Preparing MP4…"||status==="Muxing narration…"?`Exporting ${Math.round(progress*100)}%…`:"🎬 Export final MP4"}</button>
+  <button className="primary" onClick={exportMp4} disabled={status==="Checking IntentGuard…"||status==="Preparing MP4…"||status==="Muxing narration…"}>{status==="Preparing MP4…"||status==="Muxing narration…"?`Exporting ${Math.round(progress*100)}%…`:"🎬 Export final MP4"}</button>
   {status==="MP4 ready."&&url&&<a className="download" href={url} download="topic-explainer.mp4">⬇️ Download Topic Explainer MP4</a>}
   {status!=="idle"&&status!=="MP4 ready."&&<p className="muted">{status}</p>}
  </div>;
