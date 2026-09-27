@@ -1,5 +1,6 @@
 "use client";
 import {useRef,useState} from "react";
+import { inspectWithIntentGuard } from "../lib/intentguardClient";
 type Scene={image:string|null;duration:number;narration:string};
 type Word={text:string;start:number;end:number};
 type Caption={text:string;start:number;end:number};
@@ -11,6 +12,17 @@ export default function ExplainerWebCodecsExporter({scenes,words=[],captions=[]}
  async function exportVideo(){
   if(!scenes.length)return setStatus("No scenes");
   if(typeof VideoEncoder==="undefined")return setStatus("WebCodecs unavailable in this browser");
+  setStatus("Checking IntentGuard");
+  try {
+   const guard = await inspectWithIntentGuard({ operation: "CANVAS_WEBCODECS_EXPORT", evidence: { sceneCount: scenes.length, duration: total } });
+   if (guard.decision?.action !== "ALLOW") {
+    setStatus(guard.decision?.action === "REQUIRE_APPROVAL" ? "Export requires approval." : "IntentGuard blocked this export.");
+    return;
+   }
+  } catch (error) {
+   setStatus(error instanceof Error ? error.message : "IntentGuard inspection failed");
+   return;
+  }
   const canvas=canvasRef.current||document.createElement("canvas");canvas.width=720;canvas.height=1280;
   const ctx=canvas.getContext("2d");if(!ctx)return setStatus("Canvas unavailable");
   setStatus("encoding");setProgress(0);
