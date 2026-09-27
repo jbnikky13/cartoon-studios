@@ -53,7 +53,7 @@ export default function ExplainerMp4Exporter({scenes,words,captions,audioUrl}:{s
   <h3>Finish Topic Explainer</h3>
   <p className="muted">Renders the generated artwork, Ken Burns motion, timed captions and optional generated narration into one MP4 in the browser.</p>
   <canvas ref={canvasRef} width={720} height={1280} style={{display:"none"}}/>
-  <button className="primary" onClick={exportMp4} disabled={status==="Checking IntentGuard…"||status==="Preparing MP4…"||status==="Muxing narration…"}>{status==="Preparing MP4…"||status==="Muxing narration…"?`Exporting ${Math.round(progress*100)}%…`:"🎬 Export final MP4"}</button>
+  <button className="primary" onClick={exportMp4} disabled={status==="Preparing MP4…"||status==="Muxing narration…"}>{status==="Preparing MP4…"||status==="Muxing narration…"?`Exporting ${Math.round(progress*100)}%…`:"🎬 Export final MP4"}</button>
   {status==="MP4 ready."&&url&&<a className="download" href={url} download="topic-explainer.mp4">⬇️ Download Topic Explainer MP4</a>}
   {status!=="idle"&&status!=="MP4 ready."&&<p className="muted">{status}</p>}
  </div>;
