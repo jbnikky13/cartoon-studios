@@ -41,7 +41,7 @@ export default function ExplainerWebCodecsExporter({scenes,words=[],captions=[]}
   }
   await encoder.flush();encoder.close();setProgress(1);setStatus("encoded");
  }
- return <div style={{marginTop:16}}><canvas ref={canvasRef} style={{display:"none"}}/><button className="primary" onClick={exportVideo} disabled={status==="encoding"}>{status==="encoding"?"Encoding "+Math.round(progress*100)+"%...":"Export explainer frames"}</button>{status==="encoded"&&<p className="muted">WebCodecs encoding completed. MP4 muxing is the next integration.</p>}{status!=="idle"&&status!=="encoding"&&status!=="encoded"&&<p className="error">{status}</p>}</div>;
+ return <div style={{marginTop:16}}><canvas ref={canvasRef} style={{display:"none"}}/><button className="primary" onClick={exportVideo} disabled={status==="checking"||status==="encoding"}>{status==="encoding"?"Encoding "+Math.round(progress*100)+"%...":"Export explainer frames"}</button>{status==="encoded"&&<p className="muted">WebCodecs encoding completed. MP4 muxing is the next integration.</p>}{status!=="idle"&&status!=="encoding"&&status!=="encoded"&&<p className="error">{status}</p>}</div>;
 }
 function loadImage(src:string){return new Promise<HTMLImageElement>((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=src;});}
 function drawFrame(ctx:CanvasRenderingContext2D,img:HTMLImageElement|null,p:number,text:string,time:number,words:Word[],captions:Caption[]){
