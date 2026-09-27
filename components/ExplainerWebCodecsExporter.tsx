@@ -1,6 +1,5 @@
 "use client";
 import {useRef,useState} from "react";
-import { inspectWithIntentGuard } from "../lib/intentguardClient";
 type Scene={image:string|null;duration:number;narration:string};
 type Word={text:string;start:number;end:number};
 type Caption={text:string;start:number;end:number};
