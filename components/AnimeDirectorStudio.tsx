@@ -28,7 +28,7 @@ export default function AnimeDirectorStudio({onStoryReady}:Props){
       const response=await fetch("/api/anime/plan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({title,artist,character,direction,duration:Number(duration)})});
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||"Storyboard generation failed.");
-      setStory(data.plan);setProvider(data.provider||"");setNotice(data.notice||"");
+      setStory(data.plan);onStoryReady(data.plan);setProvider(data.provider||"");setNotice(data.notice||"");
     }catch(e){setError(e instanceof Error?e.message:"Storyboard generation failed.");}
     finally{setPlanning(false);}
   }
