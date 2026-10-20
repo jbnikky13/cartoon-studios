@@ -28,6 +28,8 @@ type Scene = {
   setting: string;
   camera: string;
   actions?: Action[];
+  image?: string;
+  imagePrompt?: string;
 };
 
 type ExportStory = {
@@ -92,6 +94,7 @@ function expressionState(emotion = "", local = 0) {
 const ASSET_BASE = "https://raw.githubusercontent.com/jbnikky13/cartoon-studios/main/char_assets_fullbody/";
 const RIG_ASSET_BASE = "https://raw.githubusercontent.com/jbnikky13/cartoon-studios/main/char_assets/";
 type RigAssets = Partial<Record<"head" | "torso" | "left_arm" | "right_arm" | "left_leg" | "right_leg", HTMLImageElement>>;
+const sceneImageCache = new Map<string, HTMLImageElement>();
 const rigAssetCache = new Map<string, RigAssets>();
 const rigAssetLoads = new Map<string, Promise<RigAssets>>();
 
@@ -528,6 +531,16 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mou
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W, H);
 
+  const sceneArtwork = scene?.image ? sceneImageCache.get(`${story.story_title || "Animated Story"}::${scene.number}`) : undefined;
+  if (sceneArtwork) {
+    const scale = Math.max(W / sceneArtwork.naturalWidth, H / sceneArtwork.naturalHeight);
+    const dw = sceneArtwork.naturalWidth * scale;
+    const dh = sceneArtwork.naturalHeight * scale;
+    ctx.drawImage(sceneArtwork, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    ctx.fillStyle = "rgba(5,6,10,.12)";
+    ctx.fillRect(0, 0, W, H);
+  }
+
   for (let i = 0; i < 7; i++) {
     const x = ((i + 1) * W) / 8;
     const y = 120 + Math.sin(t * (0.5 + i * 0.04) + i) * 40;
@@ -541,8 +554,16 @@ function drawFrame(canvas: HTMLCanvasElement, story: ExportStory, t: number, mou
     ctx.fill();
   }
 
-  ctx.fillStyle = "#0a0c13";
-  ctx.fillRect(0, 570, W, 150);
+  if (sceneArtwork) {
+    const groundShade = ctx.createLinearGradient(0, 520, 0, H);
+    groundShade.addColorStop(0, "rgba(5,6,10,0)");
+    groundShade.addColorStop(1, "rgba(5,6,10,.55)");
+    ctx.fillStyle = groundShade;
+    ctx.fillRect(0, 520, W, 200);
+  } else {
+    ctx.fillStyle = "#0a0c13";
+    ctx.fillRect(0, 570, W, 150);
+  }
 
   const preset = cameraPresetAt(scene, sceneProgress);
   const scale = cameraScale(scene?.camera) * cameraScaleForPreset(preset, sceneProgress);
@@ -746,6 +767,18 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
 
   const [assetsReady, setAssetsReady] = useState(false);
   const [assetStatus, setAssetStatus] = useState("Loading character assets…");
+  const [sceneImagesVersion, setSceneImagesVersion] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const artwork = (story.scenes ?? []).filter((scene) => scene.image);
+    Promise.allSettled(artwork.map(async (scene) => {
+      const key = `${story.story_title || "Animated Story"}::${scene.number}`;
+      const image = await loadImage(scene.image!);
+      sceneImageCache.set(key, image);
+    })).then(() => { if (!cancelled) setSceneImagesVersion((v) => v + 1); });
+    return () => { cancelled = true; };
+  }, [story]);
 
   useEffect(() => {
     let cancelled = false;
@@ -764,7 +797,7 @@ export default function CanvasWebCodecsStudio({ story }: Props) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) drawFrame(canvas, story, time, lipSync ? mouthLevelAt(voiceLevels, time, duration) : 0, puppetRig, actionOverrides, compiledClips, characterTransforms);
-  }, [story, time, assetsReady, lipSync, voiceLevels, duration, puppetRig, actionOverrides, compiledClips, characterTransforms]);
+  }, [story, time, assetsReady, sceneImagesVersion, lipSync, voiceLevels, duration, puppetRig, actionOverrides, compiledClips, characterTransforms]);
 
   useEffect(() => () => {
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
