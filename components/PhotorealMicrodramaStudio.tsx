@@ -7,7 +7,7 @@ type Task = {status?:string; content?:{url?:string}; video_url?:string; file_id?
 export default function PhotorealMicrodramaStudio() {
   const [title,setTitle]=useState("");
   const [prompt,setPrompt]=useState("");
-  const [duration,setDuration]=useState("6");
+  const [duration,setDuration]=useState("5");
   const [ratio,setRatio]=useState("9:16");
   const [resolution,setResolution]=useState("768P");
   const [referenceImage,setReferenceImage]=useState("");
