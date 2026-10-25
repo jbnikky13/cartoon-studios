@@ -114,3 +114,10 @@
  .anime-scene-content{padding:13px}
  .anime-scene-actions button{min-height:44px}
 }
+
+.mode-switch{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px}
+.mode-button{border:1px solid #343746;background:#11131b;color:#c7cbe0;border-radius:999px;padding:10px 14px;font-size:13px;font-weight:800}
+.mode-button.active{border-color:#9b7cff;background:rgba(155,124,255,.15);color:#fff}
+.photoreal-studio{margin-top:28px}.photoreal-intro{max-width:760px;margin-bottom:20px}.photoreal-intro h2{font-size:clamp(28px,5vw,42px);margin:8px 0}.photoreal-intro p{color:#aeb4c8;line-height:1.6}
+.photoreal-form{max-width:900px}.photoreal-form textarea{resize:vertical;min-height:120px}.photoreal-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.photoreal-file{font-size:13px;color:#aeb4c8}.text-button{border:0;background:none;color:#d9ccff;text-decoration:underline;margin-left:8px}.photoreal-task{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:16px;padding:14px;border:1px solid #343746;border-radius:12px}.photoreal-task code{overflow-wrap:anywhere;color:#d9ccff}.photoreal-task button{grid-column:1/-1}.photoreal-notice{color:#8ff0bb;line-height:1.5}.photoreal-result{margin-top:18px;padding:16px;background:#0b0c12;border:1px solid #343746;border-radius:14px}.photoreal-result video{display:block;width:100%;max-height:540px;margin-top:12px;border-radius:10px;background:#000}.photoreal-footnote{font-size:12px;color:#8f96aa;line-height:1.5;margin-top:16px}
+@media(max-width:650px){.mode-switch{gap:6px}.mode-button{font-size:12px;padding:9px 11px}.photoreal-options{grid-template-columns:1fr}.photoreal-task{grid-template-columns:1fr}}
