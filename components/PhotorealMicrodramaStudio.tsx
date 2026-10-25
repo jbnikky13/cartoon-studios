@@ -61,7 +61,7 @@ export default function PhotorealMicrodramaStudio() {
       <label className="label">Scene description<textarea className="input" rows={5} value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Describe the setting, characters, camera movement, action, mood and any exact dialogue. Avoid copyrighted characters."/></label>
       <label className="label">Character reference image URL (optional)<input className="input" type="url" value={referenceImage} onChange={e=>setReferenceImage(e.target.value)} placeholder="https://…/character-reference.png"/></label><p className="photoreal-help">Use a publicly accessible HTTPS image URL. The provider must be able to retrieve the image.</p>
       <div className="photoreal-options">
-        <label className="label">Duration<select className="input" value={duration} onChange={e=>setDuration(e.target.value)}>{[4,5,6,8,10,12,15].map(n=><option key={n} value={n}>{n} seconds</option>)}</select></label>
+        <label className="label">Duration<select className="input" value={duration} onChange={e=>setDuration(e.target.value)}>{[5,10,15].map(n=><option key={n} value={n}>{n} seconds</option>)}</select></label>
         <label className="label">Aspect ratio<select className="input" value={ratio} onChange={e=>setRatio(e.target.value)}><option value="9:16">9:16 · TikTok / Reels</option><option value="16:9">16:9 · YouTube</option></select></label>
         <label className="label">Resolution<select className="input" value={resolution} onChange={e=>setResolution(e.target.value)}><option value="768P">768P</option><option value="2K">2K</option></select></label>
       </div>
