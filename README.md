@@ -14,7 +14,7 @@ Cartoon Studio is an original browser-based production workspace for animated ex
 ## MiniMax H3 Photoreal Microdrama
 
 - Select **Photoreal Microdrama** from the main mode switch.
-- Enter a scene prompt and optionally upload a character reference image.
+- Enter a scene prompt and optionally provide a publicly accessible HTTPS character reference image URL.
 - Configure `MINIMAX_API_KEY` as a server-side Vercel environment variable. `MINIMAX_API_BASE` defaults to `https://api.minimax.io`.
 - Start generation, then manually check the returned task ID for completion. A successful task returns a provider-hosted MP4 URL.
 - The API key is only read in the server route and is never sent to the browser. Video generation may incur provider charges; verify model access and credits before use.
