@@ -11,6 +11,14 @@ Cartoon Studio is an original browser-based production workspace for animated ex
 - Send storyboard scenes into the existing CanvasWebCodecs animation timeline, with generated artwork behind the animated characters.
 - Add a music track in the timeline and export using the existing browser video pipeline.
 
+## MiniMax H3 Photoreal Microdrama
+
+- Select **Photoreal Microdrama** from the main mode switch.
+- Enter a scene prompt and optionally provide a publicly accessible HTTPS character reference image URL.
+- Configure `MINIMAX_API_KEY` as a server-side Vercel environment variable. `MINIMAX_API_BASE` defaults to `https://api.minimax.io`.
+- Start generation, then manually check the returned task ID for completion. A successful task returns a provider-hosted MP4 URL.
+- The API key is only read in the server route and is never sent to the browser. Video generation may incur provider charges; verify model access and credits before use.
+
 ## AI configuration
 
 Set `GEMINI_API_KEY` as a server-side environment variable in the deployment platform. Never expose this key in client-side code.
