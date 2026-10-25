@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        return NextResponse.json({ error: `MiniMax status check failed (HTTP ${response.status}): ${safeProviderMessage(data?.base_resp?.status_msg || data?.message || data?.error)}` }, { status: 502 });
+        return NextResponse.json({ error: `MiniMax status check failed (HTTP ${response.status}): ${safeProviderMessage(data?.base_resp?.status_msg || data?.error?.message || data?.message || data?.error)}` }, { status: 502 });
       }
       return NextResponse.json({ task: data.task || data, provider: "MiniMax H3" });
     }
@@ -49,18 +49,21 @@ export async function POST(req: Request) {
     const referenceImage = typeof body.referenceImage === "string" ? body.referenceImage : "";
     const duration = Math.round(Number(body.duration) || 6);
     const ratio = body.ratio === "16:9" ? "16:9" : "9:16";
-    const resolution = body.resolution === "1080P" || body.resolution === "720P" ? body.resolution : "768P";
+    const resolution = body.resolution === "2K" ? "2K" : "768P";
     if (prompt.length < 8) return NextResponse.json({ error: "Enter a scene prompt of at least 8 characters." }, { status: 400 });
     if (duration < 4 || duration > 15) return NextResponse.json({ error: "MiniMax H3 scene duration must be between 4 and 15 seconds." }, { status: 400 });
-    if (referenceImage && (!referenceImage.startsWith("data:image/") || referenceImage.length > 12_000_000)) {
-      return NextResponse.json({ error: "Reference image must be a supported image under 9 MB." }, { status: 400 });
+    if (referenceImage && (!/^https:\/\//i.test(referenceImage) || referenceImage.length > 2000)) {
+      return NextResponse.json({ error: "Reference image must be a publicly accessible HTTPS URL." }, { status: 400 });
+    }
+    if (referenceImage && ![5, 10, 15].includes(duration)) {
+      return NextResponse.json({ error: "When using a reference image, MiniMax H3 supports 5, 10 or 15 second durations." }, { status: 400 });
     }
 
     const content: Array<Record<string, unknown>> = [{
       type: "text",
       text: `Photorealistic live-action microdrama. Cinematic but believable human performance, natural lighting, realistic skin and hair, physically plausible movement, subtle camera motion. No cartoon, illustration, text overlays, subtitles or watermarks. ${prompt}`
     }];
-    if (referenceImage) content.push({ type: "image_url", image_url: referenceImage, role: "reference_image" });
+    if (referenceImage) content.push({ type: "image_url", image_url: { url: referenceImage }, role: "reference_image" });
 
     const response = await fetch(`${base}/v2/video_generation`, {
       method: "POST",
