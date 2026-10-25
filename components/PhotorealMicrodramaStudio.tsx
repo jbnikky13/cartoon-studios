@@ -11,28 +11,17 @@ export default function PhotorealMicrodramaStudio() {
   const [ratio,setRatio]=useState("9:16");
   const [resolution,setResolution]=useState("768P");
   const [referenceImage,setReferenceImage]=useState("");
-  const [referenceName,setReferenceName]=useState("");
   const [taskId,setTaskId]=useState("");
   const [task,setTask]=useState<Task|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
 
-  async function chooseImage(file?:File) {
-    setError(""); setReferenceImage(""); setReferenceName("");
-    if(!file) return;
-    if(!file.type.startsWith("image/")) { setError("Choose an image file."); return; }
-    if(file.size>8*1024*1024) { setError("Choose an image smaller than 8 MB."); return; }
-    const reader=new FileReader();
-    reader.onload=()=>{ if(typeof reader.result==="string"){setReferenceImage(reader.result);setReferenceName(file.name);} };
-    reader.onerror=()=>setError("Could not read that reference image.");
-    reader.readAsDataURL(file);
-  }
-
   async function createVideo() {
     setBusy(true);setError("");setNotice("");setTask(null);setTaskId("");
     try {
-      const response=await fetch("/api/minimax/video",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"create",prompt:[title.trim()? "Project: "+title.trim()+".":"",prompt].filter(Boolean).join("\n"),duration:Number(duration),ratio,resolution,referenceImage})});
+      if(referenceImage.trim()&&!/^https:\/\//i.test(referenceImage.trim())) throw new Error("Reference image must be a publicly accessible HTTPS URL.");
+      const response=await fetch("/api/minimax/video",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"create",prompt:[title.trim()? "Project: "+title.trim()+".":"",prompt].filter(Boolean).join("\n"),duration:Number(duration),ratio,resolution,referenceImage:referenceImage.trim()})});
       const data=await response.json();
       if(!response.ok) throw new Error(data.error||"MiniMax could not start video generation.");
       setTaskId(data.taskId);setNotice("MiniMax accepted the request. Generation runs asynchronously; check the task status below.");
@@ -70,12 +59,11 @@ export default function PhotorealMicrodramaStudio() {
     <div className="card photoreal-form">
       <label className="label">Project / scene title<input className="input" value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. The Last Message"/></label>
       <label className="label">Scene description<textarea className="input" rows={5} value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Describe the setting, characters, camera movement, action, mood and any exact dialogue. Avoid copyrighted characters."/></label>
-      <label className="label">Character reference image (optional)<input className="input" type="file" accept="image/*" onChange={e=>void chooseImage(e.target.files?.[0])}/></label>
-      {referenceName&&<p className="photoreal-file">Reference selected: {referenceName} <button className="text-button" type="button" onClick={()=>{setReferenceImage("");setReferenceName("");}}>Remove</button></p>}
+      <label className="label">Character reference image URL (optional)<input className="input" type="url" value={referenceImage} onChange={e=>setReferenceImage(e.target.value)} placeholder="https://…/character-reference.png"/></label><p className="photoreal-help">Use a publicly accessible HTTPS image URL. The provider must be able to retrieve the image.</p>
       <div className="photoreal-options">
         <label className="label">Duration<select className="input" value={duration} onChange={e=>setDuration(e.target.value)}>{[4,5,6,8,10,12,15].map(n=><option key={n} value={n}>{n} seconds</option>)}</select></label>
         <label className="label">Aspect ratio<select className="input" value={ratio} onChange={e=>setRatio(e.target.value)}><option value="9:16">9:16 · TikTok / Reels</option><option value="16:9">16:9 · YouTube</option></select></label>
-        <label className="label">Resolution<select className="input" value={resolution} onChange={e=>setResolution(e.target.value)}><option value="768P">768P</option><option value="720P">720P</option><option value="1080P">1080P</option></select></label>
+        <label className="label">Resolution<select className="input" value={resolution} onChange={e=>setResolution(e.target.value)}><option value="768P">768P</option><option value="2K">2K</option></select></label>
       </div>
       <button className="primary" disabled={busy||prompt.trim().length<8} onClick={()=>void createVideo()}>{busy?"Working…":"✦ Generate with MiniMax H3"}</button>
       {taskId&&<div className="photoreal-task"><span className="muted">Task ID</span><code>{taskId}</code><button className="secondary" disabled={busy} onClick={()=>void checkStatus()}>{busy?"Checking…":"Check generation status"}</button></div>}
