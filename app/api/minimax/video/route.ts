@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       return NextResponse.json({
-        error: `MiniMax video task creation failed (HTTP ${response.status}): ${safeProviderMessage(data?.base_resp?.status_msg || data?.message || data?.error)}`
+        error: `MiniMax video task creation failed (HTTP ${response.status}): ${safeProviderMessage(data?.base_resp?.status_msg || data?.error?.message || data?.message || data?.error)}`
       }, { status: 502 });
     }
     const taskId = data.task_id || data.taskId;
