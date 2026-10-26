@@ -121,3 +121,17 @@
 .photoreal-studio{margin-top:28px}.photoreal-intro{max-width:760px;margin-bottom:20px}.photoreal-intro h2{font-size:clamp(28px,5vw,42px);margin:8px 0}.photoreal-intro p{color:#aeb4c8;line-height:1.6}
 .photoreal-form{max-width:900px}.photoreal-form textarea{resize:vertical;min-height:120px}.photoreal-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.photoreal-file{font-size:13px;color:#aeb4c8}.text-button{border:0;background:none;color:#d9ccff;text-decoration:underline;margin-left:8px}.photoreal-task{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:16px;padding:14px;border:1px solid #343746;border-radius:12px}.photoreal-task code{overflow-wrap:anywhere;color:#d9ccff}.photoreal-task button{grid-column:1/-1}.photoreal-notice{color:#8ff0bb;line-height:1.5}.photoreal-result{margin-top:18px;padding:16px;background:#0b0c12;border:1px solid #343746;border-radius:14px}.photoreal-result video{display:block;width:100%;max-height:540px;margin-top:12px;border-radius:10px;background:#000}.photoreal-footnote{font-size:12px;color:#8f96aa;line-height:1.5;margin-top:16px}
 @media(max-width:650px){.mode-switch{gap:6px}.mode-button{font-size:12px;padding:9px 11px}.photoreal-options{grid-template-columns:1fr}.photoreal-task{grid-template-columns:1fr}}
+
+.photoreal-audio{padding:18px;border:1px solid #343746;border-radius:16px;background:rgba(83,216,251,.045);margin-bottom:20px}
+.photoreal-audio h3,.photoreal-form h3{margin:8px 0 12px}
+.photoreal-audio p{font-size:13px;line-height:1.5}
+.photoreal-audio input[type=file]{margin-top:8px;padding:12px}
+.photoreal-audio-details{display:grid;gap:12px;margin-top:12px;overflow:hidden}
+.photoreal-audio-details strong{overflow-wrap:anywhere}
+.photoreal-audio-details audio{width:100%;max-width:100%}
+.photoreal-audio-details .secondary{justify-self:start}
+.photoreal-timing{display:grid;gap:8px;padding:13px;border:1px solid #343746;border-radius:12px;background:#0b0c12;font-size:13px}
+.photoreal-timing span,.photoreal-timing small{color:#aeb4c8;line-height:1.5}
+.photoreal-timeline{display:flex;flex-wrap:wrap;gap:5px}
+.photoreal-timeline span{display:grid;place-items:center;min-width:27px;height:27px;border:1px solid #51436f;border-radius:6px;color:#d9ccff;font-size:11px}
+.photoreal-divider{height:1px;background:#292c38;margin:22px 0}
